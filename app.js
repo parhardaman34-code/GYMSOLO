@@ -994,7 +994,7 @@ function switchAppTab(tabId) {
         
         if (tabId === 'dashboard') { renderRecoveryHeatmap(); renderDashboardWeightGoalCard(); }
         if (tabId === 'library') renderLibrary();
-        if (tabId === 'progress') { initChart(); renderAttendanceCalendar(); renderBodyMetrics(); renderWorkoutHistory(); renderDashboardWeightGoalCard(); }
+        if (tabId === 'progress') { initChart(); renderAttendanceCalendar(); renderActivityMatrix(); renderBodyMetrics(); renderWorkoutHistory(); renderDashboardWeightGoalCard(); }
         if (tabId === 'diet') renderDietPlan();
     }, 200);
 }
@@ -1306,6 +1306,8 @@ function initMainApp(viewDay = null) {
         appState.trainerNote = '';
         saveStateToCloud();
     }
+    
+    renderActivityMatrix();
 }
 
 function closeTrainerModal() {
@@ -2187,6 +2189,29 @@ function updateWorkoutTimer() {
     }
 }
 
+let gymAudioCtx = null;
+function playSynthBeep(freq = 440, duration = 0.08, type = 'sine') {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!gymAudioCtx) gymAudioCtx = new AudioCtx();
+        if (gymAudioCtx.state === 'suspended') {
+            gymAudioCtx.resume();
+        }
+        const osc = gymAudioCtx.createOscillator();
+        const gain = gymAudioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, gymAudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, gymAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, gymAudioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(gymAudioCtx.destination);
+        osc.start();
+        osc.stop(gymAudioCtx.currentTime + duration);
+    } catch(e) {}
+}
+
+let lastBeepSecond = null;
 function updateRestTimer() {
     if (!restEndTime) return;
     const remainingMs = restEndTime - Date.now();
@@ -2194,12 +2219,21 @@ function updateRestTimer() {
     const restEl = document.getElementById('rest-timer-display');
     if (restEl) restEl.textContent = formatTime(restSeconds);
     
+    // Countdown audio beeps on 3, 2, 1 seconds
+    if (restSeconds <= 3 && restSeconds > 0 && lastBeepSecond !== restSeconds) {
+        lastBeepSecond = restSeconds;
+        playSynthBeep(520, 0.08, 'triangle');
+        if (navigator.vibrate) navigator.vibrate(40);
+    }
+
     if (restSeconds <= 0) {
         clearInterval(restInterval);
         restInterval = null;
         restEndTime = null;
+        lastBeepSecond = null;
         localStorage.removeItem('gymsolo_rest_end_time');
-        if (navigator.vibrate) navigator.vibrate([150, 100, 150]);
+        playSynthBeep(880, 0.28, 'sine');
+        if (navigator.vibrate) navigator.vibrate([150, 100, 200]);
     }
 }
 
@@ -2246,6 +2280,47 @@ function saveActiveWorkoutSnapshot() {
         rows
     };
     localStorage.setItem('gymsolo_active_workout_snapshot', JSON.stringify(snapshot));
+}
+
+function getPreviousExerciseStats(exerciseName) {
+    if (!appState.history || !Array.isArray(appState.history) || appState.history.length === 0) return null;
+    const cleanName = (exerciseName || '').trim().toLowerCase();
+    for (let i = appState.history.length - 1; i >= 0; i--) {
+        const h = appState.history[i];
+        if (!h || !Array.isArray(h.exercises)) continue;
+        const match = h.exercises.find(e => e && e.name && e.name.trim().toLowerCase() === cleanName);
+        if (match && Array.isArray(match.sets) && match.sets.length > 0) {
+            const validSets = match.sets.filter(s => s && ((s.weight && s.weight > 0) || (s.reps && s.reps > 0)));
+            if (validSets.length > 0) {
+                const topSet = [...validSets].sort((a,b) => (b.weight || 0) - (a.weight || 0))[0];
+                return {
+                    weight: topSet.weight || 0,
+                    reps: topSet.reps || 0,
+                    date: h.date || 'Last session',
+                    count: validSets.length
+                };
+            }
+        }
+    }
+    return null;
+}
+
+function autofillPreviousSets(exIndex, weight, reps) {
+    document.querySelectorAll(`.set-row-wrap[data-ex="${exIndex}"]`).forEach(wrap => {
+        const row = wrap.querySelector('.set-row');
+        if (row && !row.classList.contains('opacity-50')) {
+            const wInput = row.querySelector('.weight-input');
+            const rInput = row.querySelector('.reps-input');
+            if (wInput && (!wInput.value || parseFloat(wInput.value) === 0)) {
+                wInput.value = weight;
+            }
+            if (rInput && (!rInput.value || parseInt(rInput.value) === 0)) {
+                rInput.value = reps;
+            }
+        }
+    });
+    saveActiveWorkoutSnapshot();
+    if (window.confetti) confetti({ particleCount: 20, spread: 45, origin: { y: 0.8 } });
 }
 
 function restoreActiveWorkoutSession() {
@@ -2299,7 +2374,11 @@ function restoreActiveWorkoutSession() {
                                     
                                     <div class="flex flex-col gap-1 w-24">
                                         <input type="number" placeholder="kg" value="${wVal}" class="w-full bg-dark-200 border border-gray-700 rounded p-1 text-white text-xs focus:border-brand-400 weight-input" onchange="saveActiveWorkoutSnapshot()">
-                                        <div class="flex gap-1"><button onclick="addWeight(this, 5)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+5</button><button onclick="addWeight(this, 10)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+10</button></div>
+                                        <div class="flex gap-1">
+                                            <button onclick="addWeight(this, 5)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+5</button>
+                                            <button onclick="addWeight(this, 10)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+10</button>
+                                            <button type="button" onclick="openPlateCalcModal('${ex.name.replace(/'/g, "\\'")}', this)" class="text-[9px] bg-dark-300 px-1 rounded text-yellow-400 hover:text-yellow-300" title="Plate Calculator"><i class="fas fa-layer-group"></i></button>
+                                        </div>
                                     </div>
                                     
                                     <input type="number" placeholder="reps" value="${rVal}" class="w-16 bg-dark-200 border border-gray-700 rounded p-1 text-white text-xs focus:border-brand-400 reps-input" onchange="saveActiveWorkoutSnapshot()">
@@ -2315,7 +2394,21 @@ function restoreActiveWorkoutSession() {
                         </div>
                     `;
                 }
-                c.innerHTML += `<div class="bg-dark-200 border border-gray-800 rounded-lg p-3 sm:p-5 shadow"><div class="flex justify-between items-center mb-2 border-b border-gray-800 pb-2"><h3 class="text-md sm:text-lg font-bold text-white">${ex.name}</h3><div><button onclick="openSwapModal(${exIndex})" class="text-xs bg-dark-100 text-brand-400 px-2 py-1 rounded mr-2"><i class="fas fa-exchange-alt"></i></button><span class="text-[10px] bg-brand-900/50 text-brand-400 px-2 py-1 rounded">Target: ${ex.sets}x${ex.reps}</span></div></div>${setsHtml}</div>`;
+
+                const prevStats = getPreviousExerciseStats(ex.name);
+                const prevHintHtml = prevStats ? `
+                    <div class="flex items-center justify-between text-[11px] bg-dark-300/80 px-2.5 py-1.5 rounded-lg border border-gray-800 my-2">
+                        <span class="text-gray-400 flex items-center gap-1.5">
+                            <i class="fas fa-history text-amber-400"></i>
+                            <span>Last: <strong class="text-white">${prevStats.weight}kg × ${prevStats.reps} reps</strong></span>
+                        </span>
+                        <button type="button" onclick="autofillPreviousSets(${exIndex}, ${prevStats.weight}, ${prevStats.reps})" class="text-[10px] bg-brand-500/20 hover:bg-brand-500/40 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded font-bold transition-all flex items-center gap-1 cursor-pointer">
+                            <i class="fas fa-copy"></i> Autofill
+                        </button>
+                    </div>
+                ` : '';
+
+                c.innerHTML += `<div class="bg-dark-200 border border-gray-800 rounded-lg p-3 sm:p-5 shadow"><div class="flex justify-between items-center mb-1 border-b border-gray-800 pb-2"><h3 class="text-md sm:text-lg font-bold text-white">${ex.name}</h3><div><button onclick="openSwapModal(${exIndex})" class="text-xs bg-dark-100 text-brand-400 px-2 py-1 rounded mr-2"><i class="fas fa-exchange-alt"></i></button><span class="text-[10px] bg-brand-900/50 text-brand-400 px-2 py-1 rounded">Target: ${ex.sets}x${ex.reps}</span></div></div>${prevHintHtml}${setsHtml}</div>`;
             });
             updateProgressBar();
         } catch(e) {
@@ -2390,7 +2483,11 @@ function startWorkout() {
                             
                             <div class="flex flex-col gap-1 w-24">
                                 <input type="number" placeholder="kg" class="w-full bg-dark-200 border border-gray-700 rounded p-1 text-white text-xs focus:border-brand-400 weight-input" onchange="saveActiveWorkoutSnapshot()">
-                                <div class="flex gap-1"><button onclick="addWeight(this, 5)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+5</button><button onclick="addWeight(this, 10)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+10</button></div>
+                                <div class="flex gap-1">
+                                    <button onclick="addWeight(this, 5)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+5</button>
+                                    <button onclick="addWeight(this, 10)" class="text-[10px] bg-dark-300 px-1 rounded text-gray-400 hover:text-brand-400">+10</button>
+                                    <button type="button" onclick="openPlateCalcModal('${ex.name.replace(/'/g, "\\'")}', this)" class="text-[9px] bg-dark-300 px-1 rounded text-yellow-400 hover:text-yellow-300" title="Plate Calculator"><i class="fas fa-layer-group"></i></button>
+                                </div>
                             </div>
                             
                             <input type="number" placeholder="reps" class="w-16 bg-dark-200 border border-gray-700 rounded p-1 text-white text-xs focus:border-brand-400 reps-input" onchange="saveActiveWorkoutSnapshot()">
@@ -2404,7 +2501,21 @@ function startWorkout() {
                 </div>
             `;
         }
-        c.innerHTML += `<div class="bg-dark-200 border border-gray-800 rounded-lg p-3 sm:p-5 shadow"><div class="flex justify-between items-center mb-2 border-b border-gray-800 pb-2"><h3 class="text-md sm:text-lg font-bold text-white">${ex.name}</h3><div><button onclick="openSwapModal(${exIndex})" class="text-xs bg-dark-100 text-brand-400 px-2 py-1 rounded mr-2"><i class="fas fa-exchange-alt"></i></button><span class="text-[10px] bg-brand-900/50 text-brand-400 px-2 py-1 rounded">Target: ${ex.sets}x${ex.reps}</span></div></div>${setsHtml}</div>`;
+
+        const prevStats = getPreviousExerciseStats(ex.name);
+        const prevHintHtml = prevStats ? `
+            <div class="flex items-center justify-between text-[11px] bg-dark-300/80 px-2.5 py-1.5 rounded-lg border border-gray-800 my-2">
+                <span class="text-gray-400 flex items-center gap-1.5">
+                    <i class="fas fa-history text-amber-400"></i>
+                    <span>Last: <strong class="text-white">${prevStats.weight}kg × ${prevStats.reps} reps</strong></span>
+                </span>
+                <button type="button" onclick="autofillPreviousSets(${exIndex}, ${prevStats.weight}, ${prevStats.reps})" class="text-[10px] bg-brand-500/20 hover:bg-brand-500/40 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded font-bold transition-all flex items-center gap-1 cursor-pointer">
+                    <i class="fas fa-copy"></i> Autofill
+                </button>
+            </div>
+        ` : '';
+
+        c.innerHTML += `<div class="bg-dark-200 border border-gray-800 rounded-lg p-3 sm:p-5 shadow"><div class="flex justify-between items-center mb-1 border-b border-gray-800 pb-2"><h3 class="text-md sm:text-lg font-bold text-white">${ex.name}</h3><div><button onclick="openSwapModal(${exIndex})" class="text-xs bg-dark-100 text-brand-400 px-2 py-1 rounded mr-2"><i class="fas fa-exchange-alt"></i></button><span class="text-[10px] bg-brand-900/50 text-brand-400 px-2 py-1 rounded">Target: ${ex.sets}x${ex.reps}</span></div></div>${prevHintHtml}${setsHtml}</div>`;
     });
     
     saveActiveWorkoutSnapshot();
@@ -4105,8 +4216,15 @@ function saveTransformationData() {
 // --- GYM COMMERCIAL SUPERCHARGERS (VIP PASS, CROWD METER, SHAKE BAR, CERTS, LEADS) ---
 // ============================================================================
 
-// --- 1. DIGITAL VIP MEMBERSHIP PASS ---
+// --- 1. DIGITAL VIP MEMBERSHIP PASS (WITH 3D FLIP) ---
+function toggleVipCardFlip() {
+    const inner = document.getElementById('vip-flip-inner');
+    if (inner) inner.classList.toggle('is-flipped');
+}
+
 function openVipCardModal() {
+    const inner = document.getElementById('vip-flip-inner');
+    if (inner) inner.classList.remove('is-flipped');
     updateVipCardUI();
     const modal = document.getElementById('vip-card-modal');
     if (modal) modal.classList.remove('hidden-view');
@@ -4155,6 +4273,20 @@ function updateVipCardUI() {
     }
     if (qrEl) {
         qrEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GYMSOLO_MEMBER_${clientId}_${encodeURIComponent(memberName)}`;
+    }
+
+    // Populate Back Face Details
+    const coachEl = document.getElementById('vip-back-coach');
+    const lockerEl = document.getElementById('vip-back-locker');
+    const bloodEl = document.getElementById('vip-back-blood');
+    const emergEl = document.getElementById('vip-back-emergency');
+
+    if (coachEl) coachEl.textContent = (appState.user && appState.user.assignedTrainer) || 'Head Coach';
+    if (lockerEl) lockerEl.textContent = 'Locker #' + (Math.abs(parseInt(memberId.replace(/\D/g, '')) || 42) % 60 + 1);
+    if (bloodEl) bloodEl.textContent = (appState.user && appState.user.bloodGroup) || 'O+ Positive';
+    if (emergEl) {
+        const ph = (appState.user && appState.user.phone) || '+91 98765-43210';
+        emergEl.innerHTML = `<i class="fas fa-phone-alt text-amber-400 text-[9px]"></i> ${ph}`;
     }
 }
 
@@ -5658,5 +5790,746 @@ function closeExerciseFormGuideModal() {
 function openExerciseFormOnYoutube() {
     const q = `how to do ${currentFormGuideExercise} proper form tutorial`;
     window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, '_blank');
+}
+
+// ============================================================================
+// OPTION A: 🏆 MONTHLY GYM COMMUNITY LEADERBOARD & VIRAL SOCIAL ENGINE
+// ============================================================================
+let activeLeaderboardTab = 'streak'; // 'streak' | 'strength' | 'volume'
+
+const defaultCommunityAthletes = [
+    { id: 'ath_1', name: 'Vikram Singh', streak: 26, bench: 130, squat: 175, deadlift: 210, volume: 48500, avatar: 'VS', tier: 'Titan' },
+    { id: 'ath_2', name: 'Marcus Vance', streak: 24, bench: 140, squat: 185, deadlift: 220, volume: 52000, avatar: 'MV', tier: 'Elite' },
+    { id: 'ath_3', name: 'Rohit Sharma', streak: 21, bench: 110, squat: 145, deadlift: 180, volume: 38200, avatar: 'RS', tier: 'Pro' },
+    { id: 'ath_4', name: 'Aman Verma', streak: 19, bench: 105, squat: 140, deadlift: 165, volume: 34100, avatar: 'AV', tier: 'Warrior' },
+    { id: 'ath_5', name: 'Priya Patel', streak: 18, bench: 65, squat: 105, deadlift: 125, volume: 29500, avatar: 'PP', tier: 'Warrior' },
+    { id: 'ath_6', name: 'Karan Mehra', streak: 15, bench: 95, squat: 130, deadlift: 155, volume: 27000, avatar: 'KM', tier: 'Challenger' },
+    { id: 'ath_7', name: 'Ananya Roy', streak: 14, bench: 55, squat: 90, deadlift: 110, volume: 22400, avatar: 'AR', tier: 'Challenger' },
+    { id: 'ath_8', name: 'Dev Malhotra', streak: 11, bench: 85, squat: 115, deadlift: 135, volume: 19800, avatar: 'DM', tier: 'Rookie' }
+];
+
+function getCurrentUserLeaderboardStats() {
+    const userName = (appState.user && appState.user.name) || 'You';
+    const streak = appState.streak || 1;
+    
+    // PRs from appState
+    const prs = appState.personalRecords || {};
+    const bench = prs['Barbell Bench Press'] || prs['Bench Press'] || 70;
+    const squat = prs['Barbell Squat'] || prs['Squat'] || 90;
+    const deadlift = prs['Deadlift'] || prs['Barbell Deadlift'] || 100;
+    
+    // Calculate total monthly volume from workout history
+    let vol = 0;
+    if (Array.isArray(appState.workoutHistory)) {
+        appState.workoutHistory.forEach(w => {
+            if (Array.isArray(w.exercises)) {
+                w.exercises.forEach(ex => {
+                    if (Array.isArray(ex.sets)) {
+                        ex.sets.forEach(s => {
+                            vol += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+                        });
+                    }
+                });
+            }
+        });
+    }
+    if (vol === 0) vol = 14200;
+
+    const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'ME';
+
+    return {
+        id: 'current_user',
+        name: `${userName} (You)`,
+        isCurrentUser: true,
+        streak: streak,
+        bench: bench,
+        squat: squat,
+        deadlift: deadlift,
+        big3: bench + squat + deadlift,
+        volume: vol,
+        avatar: initials,
+        tier: streak > 20 ? 'Titan' : (streak > 10 ? 'Warrior' : 'Challenger')
+    };
+}
+
+function openLeaderboardModal() {
+    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const gnEl = document.getElementById('leaderboard-gym-name');
+    if (gnEl) gnEl.textContent = `${gymName} • Live Community Rankings`;
+    switchLeaderboardTab(activeLeaderboardTab || 'streak');
+    const modal = document.getElementById('leaderboard-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeLeaderboardModal() {
+    const modal = document.getElementById('leaderboard-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function switchLeaderboardTab(tab) {
+    activeLeaderboardTab = tab;
+    
+    ['streak', 'strength', 'volume'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-lb-${t}`);
+        if (btn) {
+            if (t === tab) {
+                btn.className = 'flex-1 py-2 rounded-xl text-xs font-extrabold transition-all bg-yellow-500 text-black shadow-md cursor-pointer flex items-center justify-center gap-1';
+            } else {
+                btn.className = 'flex-1 py-2 rounded-xl text-xs font-extrabold transition-all text-gray-400 hover:text-white cursor-pointer flex items-center justify-center gap-1';
+            }
+        }
+    });
+
+    renderLeaderboardUI();
+}
+
+function renderLeaderboardUI() {
+    const userStats = getCurrentUserLeaderboardStats();
+    
+    let list = defaultCommunityAthletes.map(a => ({
+        ...a,
+        big3: a.bench + a.squat + a.deadlift,
+        isCurrentUser: false
+    }));
+    list.push(userStats);
+
+    if (activeLeaderboardTab === 'streak') {
+        list.sort((a, b) => b.streak - a.streak);
+    } else if (activeLeaderboardTab === 'strength') {
+        list.sort((a, b) => b.big3 - a.big3);
+    } else if (activeLeaderboardTab === 'volume') {
+        list.sort((a, b) => b.volume - a.volume);
+    }
+
+    list.forEach((item, idx) => { item.rank = idx + 1; });
+
+    const podiumEl = document.getElementById('leaderboard-podium');
+    if (podiumEl && list.length >= 3) {
+        const first = list[0];
+        const second = list[1];
+        const third = list[2];
+
+        const getScoreLabel = (athlete) => {
+            if (activeLeaderboardTab === 'streak') return `${athlete.streak} Days 🔥`;
+            if (activeLeaderboardTab === 'strength') return `${athlete.big3} kg (Big 3)`;
+            return `${(athlete.volume / 1000).toFixed(1)}k kg`;
+        };
+
+        podiumEl.innerHTML = `
+            <!-- 2nd Place (Silver) -->
+            <div class="flex-1 flex flex-col items-center text-center">
+                <span class="text-xs mb-1">🥈</span>
+                <div class="w-11 h-11 rounded-2xl bg-gray-400/20 text-gray-300 border border-gray-400/40 flex items-center justify-center text-xs font-black shadow mb-1.5 ${second.isCurrentUser ? 'ring-2 ring-yellow-400' : ''}">
+                    ${second.avatar}
+                </div>
+                <h5 class="text-[11px] font-bold text-white truncate max-w-[85px]">${second.name}</h5>
+                <span class="text-[10px] text-gray-300 font-extrabold">${getScoreLabel(second)}</span>
+                <div class="w-full h-12 bg-gradient-to-t from-gray-700/40 to-gray-600/20 rounded-t-xl mt-2 flex items-center justify-center font-black text-gray-400 text-xs">#2</div>
+            </div>
+
+            <!-- 1st Place (Gold Champion) -->
+            <div class="flex-1 flex flex-col items-center text-center -mt-3">
+                <span class="text-base mb-0.5 animate-bounce">👑</span>
+                <div class="w-14 h-14 rounded-2xl bg-yellow-500/25 text-yellow-300 border-2 border-yellow-400 flex items-center justify-center text-sm font-black shadow-lg shadow-yellow-500/20 mb-1.5 ${first.isCurrentUser ? 'ring-4 ring-yellow-400' : ''}">
+                    ${first.avatar}
+                </div>
+                <h5 class="text-xs font-black text-yellow-300 truncate max-w-[95px]">${first.name}</h5>
+                <span class="text-[11px] text-brand-400 font-black">${getScoreLabel(first)}</span>
+                <div class="w-full h-16 bg-gradient-to-t from-yellow-600/40 to-yellow-500/20 border-t border-yellow-400/50 rounded-t-xl mt-2 flex items-center justify-center font-black text-yellow-400 text-sm">#1 🥇</div>
+            </div>
+
+            <!-- 3rd Place (Bronze) -->
+            <div class="flex-1 flex flex-col items-center text-center">
+                <span class="text-xs mb-1">🥉</span>
+                <div class="w-11 h-11 rounded-2xl bg-amber-700/20 text-amber-500 border border-amber-700/40 flex items-center justify-center text-xs font-black shadow mb-1.5 ${third.isCurrentUser ? 'ring-2 ring-yellow-400' : ''}">
+                    ${third.avatar}
+                </div>
+                <h5 class="text-[11px] font-bold text-white truncate max-w-[85px]">${third.name}</h5>
+                <span class="text-[10px] text-amber-400 font-extrabold">${getScoreLabel(third)}</span>
+                <div class="w-full h-9 bg-gradient-to-t from-amber-900/40 to-amber-800/20 rounded-t-xl mt-2 flex items-center justify-center font-black text-amber-500 text-xs">#3</div>
+            </div>
+        `;
+    }
+
+    const rosterEl = document.getElementById('leaderboard-roster-list');
+    if (rosterEl) {
+        rosterEl.innerHTML = list.map(item => {
+            let scoreStr = '';
+            let subStr = '';
+            if (activeLeaderboardTab === 'streak') {
+                scoreStr = `${item.streak} Days`;
+                subStr = `Checked-in ${item.streak} days this month`;
+            } else if (activeLeaderboardTab === 'strength') {
+                scoreStr = `${item.big3} kg`;
+                subStr = `B: ${item.bench}k | S: ${item.squat}k | D: ${item.deadlift}k`;
+            } else {
+                scoreStr = `${(item.volume / 1000).toFixed(1)}k kg`;
+                subStr = `Total weight moved this month`;
+            }
+
+            const isUser = item.isCurrentUser;
+
+            return `
+                <div class="p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${isUser ? 'bg-yellow-500/15 border-yellow-400/80 shadow-md ring-1 ring-yellow-400/50' : 'bg-dark-100 border-gray-800 hover:border-gray-700'}">
+                    <div class="flex items-center gap-3">
+                        <span class="w-6 text-center text-xs font-black ${item.rank <= 3 ? 'text-yellow-400' : 'text-gray-500'}">#${item.rank}</span>
+                        <div class="w-8 h-8 rounded-xl ${isUser ? 'bg-yellow-500 text-black font-black' : 'bg-dark-300 text-gray-300 border border-gray-700'} flex items-center justify-center text-xs font-bold shrink-0">
+                            ${item.avatar}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h5 class="text-xs font-bold ${isUser ? 'text-yellow-300' : 'text-white'}">${item.name}</h5>
+                                ${isUser ? '<span class="text-[9px] bg-yellow-400 text-black px-1.5 py-0.2 rounded font-extrabold uppercase">YOU</span>' : ''}
+                                <span class="text-[9px] bg-dark-300 text-gray-400 px-1.5 py-0.2 rounded border border-gray-800">${item.tier}</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400">${subStr}</p>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="text-xs font-black ${isUser ? 'text-yellow-400' : 'text-white'} block">${scoreStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+function shareLeaderboardRankWhatsApp() {
+    const userStats = getCurrentUserLeaderboardStats();
+    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    
+    let list = defaultCommunityAthletes.map(a => ({ ...a, big3: a.bench + a.squat + a.deadlift }));
+    list.push(userStats);
+    if (activeLeaderboardTab === 'streak') list.sort((a,b) => b.streak - a.streak);
+    else if (activeLeaderboardTab === 'strength') list.sort((a,b) => b.big3 - a.big3);
+    else list.sort((a,b) => b.volume - a.volume);
+    
+    const rank = list.findIndex(a => a.isCurrentUser) + 1;
+    const baseUri = window.location.href.split('#')[0].split('?')[0];
+
+    const msg = `🏆 I'm ranked #${rank} on the ${gymName} Monthly Leaderboard! 💪\n\n🔥 Streak: ${userStats.streak} Days\n🏋️ Big 3 Total: ${userStats.big3} kg (Bench: ${userStats.bench}kg | Squat: ${userStats.squat}kg | Deadlift: ${userStats.deadlift}kg)\n⚡ Volume Moved: ${(userStats.volume/1000).toFixed(1)} tons!\n\nThink you can beat me? Join me with a 3-Day Free VIP Trial Pass at ${gymName}:\n👉 ${baseUri}#trial`;
+    
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ============================================================================
+// OPTION B: 🥗 1-CLICK INDIAN & REGIONAL DIET PRESETS ENGINE
+// ============================================================================
+let activePresetGoalMode = 'cut'; // 'cut' | 'bulk'
+let activePresetCategory = 'veg'; // 'veg' | 'egg' | 'nonveg' | 'vegan'
+
+const indianDietPresetsDB = {
+    cut: {
+        veg: {
+            title: 'Desi Shakahari Fat Loss Plan',
+            tag: 'HIGH PROTEIN VEGETARIAN',
+            desc: 'Low-calorie, satiating vegetarian plan with paneer, soya chunks, roasted chana, and high-fiber sprouts.',
+            cals: 1750,
+            protein: 115,
+            carbs: 160,
+            fats: 45,
+            cost: '~₹110 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Power Breakfast', items: '120g Low-Fat Paneer Bhurji + 1 Multigrain Roti + 1 cup Black Coffee / Green Tea', pro: '24g', cals: '320 kcal' },
+                { time: '11:30 AM', name: 'Mid-Morning Fuel', items: '1 bowl Moong Dal Sprouts Chaat (onion, tomato, lemon) + 15g Almonds', pro: '12g', cals: '180 kcal' },
+                { time: '1:30 PM', name: 'Desi Protein Lunch', items: '50g Soya Chunks Curry + 1 cup Cooked Rice or 1 Roti + 1 bowl Yellow Dal Tadka + Cucumber Salad', pro: '36g', cals: '480 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Crunch', items: '40g Roasted Chana (Bhuna Chana) + 1 glass Salted Chaas (Buttermilk)', pro: '14g', cals: '190 kcal' },
+                { time: '8:30 PM', name: 'Light Shred Dinner', items: '100g Grilled Paneer or Soya Tikka + 1 bowl Mixed Vegetable Soup + Lemon Water', pro: '22g', cals: '340 kcal' },
+                { time: '10:30 PM', name: 'Recovery Drink', items: '1 scoop Whey Protein in Water (or Warm Turmeric Milk)', pro: '24g', cals: '130 kcal' }
+            ]
+        },
+        egg: {
+            title: 'Budget Eggetarian Shred Plan',
+            tag: 'BUDGET EGGETARIAN',
+            desc: 'Maximum protein per rupee spent using whole and egg whites paired with clean complex carbs.',
+            cals: 1850,
+            protein: 135,
+            carbs: 170,
+            fats: 50,
+            cost: '~₹95 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'High-Protein Breakfast', items: '4 Boiled Eggs (2 whole + 2 whites) + 2 slices Whole Wheat Brown Bread + Black Coffee', pro: '26g', cals: '340 kcal' },
+                { time: '11:30 AM', name: 'Mid-Day Snack', items: '1 glass Fresh Buttermilk (Chaas) + 1 Apple', pro: '4g', cals: '120 kcal' },
+                { time: '1:30 PM', name: 'Egg Bhurji Lunch', items: '3 Egg Whites Bhurji with Veggies + 2 Multigrain Rotis + 1 bowl Toor Dal + Green Salad', pro: '28g', cals: '460 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Fuel', items: '2 Boiled Egg Whites + 30g Roasted Chana + 1 Banana', pro: '14g', cals: '220 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '3 Boiled Eggs (1 whole + 2 whites) + 1 bowl Rajma/Dal + Steamed Brown Rice (1 cup)', pro: '32g', cals: '490 kcal' },
+                { time: '10:30 PM', name: 'Night Protein', items: '1 cup Low-Fat Curd (Dahi) with pinch of Cinnamon', pro: '10g', cals: '110 kcal' }
+            ]
+        },
+        nonveg: {
+            title: 'Lean Desi Chicken & Egg Cut',
+            tag: 'HIGH PROTEIN NON-VEG',
+            desc: 'Gold-standard fat loss plan with tender chicken breast, boiled eggs, fish, and crisp green salads.',
+            cals: 1800,
+            protein: 155,
+            carbs: 145,
+            fats: 45,
+            cost: '~₹160 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Omelette Breakfast', items: '3 Eggs Omelette (1 whole + 2 whites) + 40g Rolled Oats cooked in water + Green Tea', pro: '24g', cals: '330 kcal' },
+                { time: '11:30 AM', name: 'Mid-Morning Boost', items: '1 bowl Papaya or Watermelon + 10 Almonds', pro: '4g', cals: '110 kcal' },
+                { time: '1:30 PM', name: 'Chicken Tikka Lunch', items: '180g Boiled / Air-Fried Chicken Breast + 1 cup Steamed Basmati Rice + 1 bowl Cucumber Tomato Salad', pro: '48g', cals: '460 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Snack', items: '1 Black Coffee + 1 Brown Bread with 1 tsp Peanut Butter', pro: '6g', cals: '140 kcal' },
+                { time: '8:30 PM', name: 'Grilled Protein Dinner', items: '150g Grilled Fish or Chicken Breast + 1 bowl Sautéed Broccoli & Bell Peppers + Dal', pro: '44g', cals: '420 kcal' },
+                { time: '10:30 PM', name: 'Bedtime Whey', items: '1 scoop Whey Isolate in Cold Water', pro: '26g', cals: '120 kcal' }
+            ]
+        },
+        vegan: {
+            title: 'Desi Plant-Based Shred Plan',
+            tag: 'PLANT-BASED VEGAN',
+            desc: '100% dairy-free and meat-free fat loss plan utilizing soya chunks, tofu, chhole, and lentils.',
+            cals: 1720,
+            protein: 105,
+            carbs: 190,
+            fats: 40,
+            cost: '~₹90 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Besan Tofu Breakfast', items: '2 Besan Chillas stuffed with 60g Grated Tofu & Coriander + Mint Chutney', pro: '22g', cals: '320 kcal' },
+                { time: '11:30 AM', name: 'Morning Sprout Crunch', items: '1 bowl Steamed Moong & Kala Chana Sprouts with Lemon', pro: '14g', cals: '160 kcal' },
+                { time: '1:30 PM', name: 'Soya Curry Lunch', items: '55g Soya Chunks in Desi Curry + 1 bowl Yellow Dal + 1 cup Rice + Fresh Salad', pro: '38g', cals: '490 kcal' },
+                { time: '5:30 PM', name: 'Snack', items: '35g Roasted Soya Nuts + 1 Black Coffee', pro: '15g', cals: '160 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '1 bowl Rajma or Chhole + 2 Multigrain Rotis + Green Salad', pro: '16g', cals: '390 kcal' }
+            ]
+        }
+    },
+    bulk: {
+        veg: {
+            title: 'Desi Shakahari Mass Builder',
+            tag: 'HIGH PROTEIN VEGETARIAN SURPLUS',
+            desc: 'Nutrient-dense muscle building plan packed with paneer, milkshakes, soya chunks, nuts, and lentils.',
+            cals: 2450,
+            protein: 135,
+            carbs: 290,
+            fats: 75,
+            cost: '~₹145 / Day',
+            meals: [
+                { time: '7:30 AM', name: 'Morning Mass Shake', items: '500ml Milk + 1 Banana + 40g Oats + 2 tbsp Peanut Butter + 1 scoop Whey/Sattu', pro: '35g', cals: '580 kcal' },
+                { time: '10:30 AM', name: 'Breakfast', items: '150g Paneer Bhurji + 2 Whole Wheat Parathas + Curd', pro: '30g', cals: '510 kcal' },
+                { time: '1:30 PM', name: 'Heavy Lunch', items: '60g Soya Chunks Curry + 1.5 cup Rice + 1 bowl Dal Makhani/Tadka + Dahi', pro: '42g', cals: '640 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Fuel', items: '50g Roasted Chana + 2 Bananas + 15 Almonds', pro: '16g', cals: '340 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '150g Paneer Tikka or Kofta + 3 Multigrain Rotis + Mixed Dal', pro: '32g', cals: '560 kcal' }
+            ]
+        },
+        egg: {
+            title: 'Eggetarian Heavy Muscle Bulk',
+            tag: 'EGGETARIAN MASS FUEL',
+            desc: 'High-calorie clean bulking with 6+ eggs daily, peanut butter, milk, and high-protein rice dishes.',
+            cals: 2550,
+            protein: 155,
+            carbs: 300,
+            fats: 78,
+            cost: '~₹130 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Breakfast', items: '4 Whole Boiled Eggs + 2 Peanut Butter Toast + 1 glass Milk', pro: '36g', cals: '560 kcal' },
+                { time: '11:30 AM', name: 'Snack', items: '1 Banana Shake with 1 tbsp Honey and Chia Seeds', pro: '8g', cals: '240 kcal' },
+                { time: '1:30 PM', name: 'Egg Curry Lunch', items: '3 Egg Curry + 1.5 cup Steamed Rice + 1 bowl Dal Tadka + 1 cup Curd', pro: '34g', cals: '680 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Crunch', items: '2 Boiled Eggs + 50g Roasted Chana + 1 Sweet Potato', pro: '18g', cals: '310 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '100g Paneer/Soya Bhurji + 3 Egg Whites Bhurji + 3 Rotis + Salad', pro: '42g', cals: '610 kcal' }
+            ]
+        },
+        nonveg: {
+            title: 'Pure Desi Chicken & Meat Hypertrophy',
+            tag: 'NON-VEG BEAST BULK',
+            desc: 'Ultimate athletic mass plan with 250g+ chicken breast, eggs, fish, rice, and healthy fats.',
+            cals: 2650,
+            protein: 180,
+            carbs: 310,
+            fats: 72,
+            cost: '~₹195 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Breakfast', items: '4 Eggs (2 whole + 2 whites) Scrambled + 60g Masala Oats with Nuts + 1 glass Milk', pro: '34g', cals: '540 kcal' },
+                { time: '11:30 AM', name: 'Mid-Morning Snack', items: '1 Banana + 20g Walnuts and Almonds', pro: '6g', cals: '210 kcal' },
+                { time: '1:30 PM', name: 'Chicken Feast Lunch', items: '220g Chicken Breast Curry (Low Oil) + 2 cups Basmati Rice + 1 bowl Dal + Salad', pro: '62g', cals: '720 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Energy', items: '1 Brown Bread with Peanut Butter + 1 Banana + Black Coffee', pro: '8g', cals: '250 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '180g Fish Curry or Grilled Chicken Breast + 3 Multigrain Rotis + Veggies', pro: '52g', cals: '610 kcal' },
+                { time: '10:30 PM', name: 'Night Shake', items: '1 scoop Whey Protein in 250ml Milk', pro: '32g', cals: '240 kcal' }
+            ]
+        },
+        vegan: {
+            title: 'Plant-Based Desi Power Builder',
+            tag: 'VEGAN MUSCLE SURPLUS',
+            desc: 'Clean vegan bulking powered by soya, tofu, rajma, chhole, oats, and peanut butter.',
+            cals: 2380,
+            protein: 125,
+            carbs: 320,
+            fats: 65,
+            cost: '~₹115 / Day',
+            meals: [
+                { time: '8:00 AM', name: 'Breakfast', items: 'Oats Smoothie (50g Oats + 2 Bananas + 2 tbsp Peanut Butter + Soy Milk)', pro: '24g', cals: '520 kcal' },
+                { time: '11:30 AM', name: 'Snack', items: '1 bowl Boiled Kala Chana Chaat with Tomatoes and Lemon', pro: '14g', cals: '210 kcal' },
+                { time: '1:30 PM', name: 'Lunch', items: '70g Soya Chunks Curry + 1.5 cup Rice + 1 bowl Chhole/Rajma + Salad', pro: '46g', cals: '690 kcal' },
+                { time: '5:30 PM', name: 'Pre-Workout Fuel', items: '50g Roasted Soya Nuts + 1 Apple', pro: '20g', cals: '240 kcal' },
+                { time: '8:30 PM', name: 'Dinner', items: '120g Tofu Curry + 3 Multigrain Rotis + 1 bowl Dal Tadka', pro: '28g', cals: '580 kcal' }
+            ]
+        }
+    }
+};
+
+function openIndianDietPresetsModal() {
+    renderIndianDietPresetUI();
+    const modal = document.getElementById('indian-diet-presets-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeIndianDietPresetsModal() {
+    const modal = document.getElementById('indian-diet-presets-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function setPresetGoalMode(mode) {
+    activePresetGoalMode = mode;
+    const cutBtn = document.getElementById('diet-goal-btn-cut');
+    const bulkBtn = document.getElementById('diet-goal-btn-bulk');
+    if (cutBtn && bulkBtn) {
+        if (mode === 'cut') {
+            cutBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-black';
+            bulkBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400 hover:text-white';
+        } else {
+            bulkBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-black';
+            cutBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400 hover:text-white';
+        }
+    }
+    renderIndianDietPresetUI();
+}
+
+function selectIndianDietCategory(cat) {
+    activePresetCategory = cat;
+    ['veg', 'egg', 'nonveg', 'vegan'].forEach(c => {
+        const btn = document.getElementById(`preset-cat-${c}`);
+        if (btn) {
+            if (c === cat) {
+                btn.className = 'p-2.5 rounded-2xl border border-amber-400 bg-amber-500/20 text-left transition-all cursor-pointer ring-2 ring-amber-400/50';
+            } else {
+                btn.className = 'p-2.5 rounded-2xl border border-gray-800 hover:border-gray-700 bg-dark-100 text-left transition-all cursor-pointer';
+            }
+        }
+    });
+    renderIndianDietPresetUI();
+}
+
+function renderIndianDietPresetUI() {
+    const group = indianDietPresetsDB[activePresetGoalMode] || indianDietPresetsDB['cut'];
+    const preset = group[activePresetCategory] || group['veg'];
+
+    const tagEl = document.getElementById('preset-hero-tag');
+    const titleEl = document.getElementById('preset-hero-title');
+    const descEl = document.getElementById('preset-hero-desc');
+    const costEl = document.getElementById('preset-hero-cost');
+    const calsEl = document.getElementById('preset-hero-cals');
+    const proEl = document.getElementById('preset-hero-pro');
+    const carbEl = document.getElementById('preset-hero-carb');
+    const fatEl = document.getElementById('preset-hero-fat');
+
+    if (tagEl) tagEl.textContent = preset.tag;
+    if (titleEl) titleEl.textContent = preset.title;
+    if (descEl) descEl.textContent = preset.desc;
+    if (costEl) costEl.textContent = preset.cost;
+    if (calsEl) calsEl.textContent = `${preset.cals} kcal`;
+    if (proEl) proEl.textContent = `${preset.protein}g`;
+    if (carbEl) carbEl.textContent = `${preset.carbs}g`;
+    if (fatEl) fatEl.textContent = `${preset.fats}g`;
+
+    const mealsEl = document.getElementById('preset-meals-schedule');
+    if (mealsEl) {
+        mealsEl.innerHTML = preset.meals.map(m => `
+            <div class="p-3 bg-dark-100 rounded-2xl border border-gray-800 flex justify-between items-start gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] bg-dark-300 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-mono font-bold">${m.time}</span>
+                        <h5 class="text-xs font-bold text-white">${m.name}</h5>
+                    </div>
+                    <p class="text-xs text-gray-300 mt-1 leading-snug">${m.items}</p>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-xs font-bold text-brand-400 block">${m.pro} pro</span>
+                    <span class="text-[10px] text-gray-400">${m.cals}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function applyPresetToDietPlan() {
+    const group = indianDietPresetsDB[activePresetGoalMode] || indianDietPresetsDB['cut'];
+    const preset = group[activePresetCategory] || group['veg'];
+
+    if (!appState.customDiet) appState.customDiet = [];
+    appState.customDiet = preset.meals.map(m => ({
+        time: m.time,
+        name: m.name,
+        desc: m.items,
+        cals: parseInt(m.cals) || 300,
+        pro: parseInt(m.pro) || 25,
+        carb: Math.round((preset.carbs / preset.meals.length)),
+        fat: Math.round((preset.fats / preset.meals.length))
+    }));
+
+    if (appState.user) {
+        appState.user.dietPreference = (activePresetCategory === 'veg' || activePresetCategory === 'vegan') ? 'Veg' : 'Non-Veg';
+        appState.user.dailyCalories = preset.cals;
+        appState.user.dailyProtein = preset.protein;
+        appState.user.dailyCarbs = preset.carbs;
+        appState.user.dailyFat = preset.fats;
+    }
+
+    saveStateToCloud();
+    renderDietPlan();
+    addAthleteXp(75);
+    checkAndAwardBadges();
+
+    if (typeof confetti === 'function') {
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+    }
+
+    alert(`🎉 Successfully applied "${preset.title}" to your daily diet! Your macro targets and meals have been updated.`);
+    closeIndianDietPresetsModal();
+}
+
+function shareDietPresetWhatsApp() {
+    const group = indianDietPresetsDB[activePresetGoalMode] || indianDietPresetsDB['cut'];
+    const preset = group[activePresetCategory] || group['veg'];
+    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+
+    let txt = `🥗 *${gymName} — ${preset.title}*\n`;
+    txt += `🎯 Goal: ${activePresetGoalMode === 'cut' ? 'Fat Loss / Shred' : 'Muscle Mass Gain'}\n`;
+    txt += `📊 Daily Macros: ${preset.cals} kcal | ${preset.protein}g Protein | ${preset.carbs}g Carbs | ${preset.fats}g Fats\n`;
+    txt += `💰 Est. Daily Cost: ${preset.cost}\n\n`;
+    txt += `📋 *DAILY MEAL SCHEDULE:*\n`;
+
+    preset.meals.forEach((m, idx) => {
+        txt += `\n*${idx + 1}. ${m.name} (${m.time})*\n`;
+        txt += `👉 ${m.items}\n`;
+        txt += `   └─ Protein: ${m.pro} | Cals: ${m.cals}\n`;
+    });
+
+    txt += `\n💪 Certified by Head Coach at ${gymName}`;
+
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(txt)}`, '_blank');
+}
+
+// ============================================================================
+// --- 12-WEEK WORKOUT CONSISTENCY MATRIX (GITHUB / APPLE FITNESS STYLE) ---
+// ============================================================================
+function renderActivityMatrix() {
+    const container = document.getElementById('workout-activity-matrix');
+    if (!container) return;
+
+    const daysCount = 84; // 12 weeks * 7 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Map history workouts by date string key YYYY-MM-DD
+    const activityMap = {};
+    if (Array.isArray(appState.history)) {
+        appState.history.forEach(h => {
+            if (!h) return;
+            const d = h.timestamp ? new Date(h.timestamp) : (h.date ? new Date(h.date) : null);
+            if (!d || isNaN(d.getTime())) return;
+            const key = d.toISOString().slice(0, 10);
+            if (!activityMap[key]) {
+                activityMap[key] = { count: 0, volume: 0, split: h.split || 'Workout' };
+            }
+            activityMap[key].count++;
+            activityMap[key].volume += (h.volume || 0);
+        });
+    }
+
+    // Generate date sequence for the past 84 days
+    const blocks = [];
+    let activeDaysCount = 0;
+
+    for (let i = daysCount - 1; i >= 0; i--) {
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() - i);
+        const key = targetDate.toISOString().slice(0, 10);
+        const data = activityMap[key];
+        const dayLabel = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        if (data && data.count > 0) {
+            activeDaysCount++;
+            let bgClass = 'bg-emerald-500 border border-emerald-400';
+            if (data.volume > 10000 || data.count >= 2) {
+                bgClass = 'bg-amber-400 border border-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.7)]';
+            } else if (data.volume < 3000) {
+                bgClass = 'bg-emerald-800 border border-emerald-700';
+            }
+            blocks.push(`
+                <div class="w-3.5 h-3.5 rounded-sm ${bgClass} cursor-pointer hover:scale-125 transition-transform" 
+                     title="${dayLabel}: ${data.split} (${data.volume.toLocaleString()} kg volume)">
+                </div>
+            `);
+        } else {
+            blocks.push(`
+                <div class="w-3.5 h-3.5 rounded-sm bg-dark-100 border border-gray-800/80 cursor-pointer hover:bg-gray-800 transition-colors" 
+                     title="${dayLabel}: Rest Day">
+                </div>
+            `);
+        }
+    }
+
+    container.innerHTML = blocks.join('');
+
+    const totalSessionsEl = document.getElementById('matrix-total-sessions');
+    const consistencyRateEl = document.getElementById('matrix-consistency-rate');
+
+    if (totalSessionsEl) totalSessionsEl.textContent = activeDaysCount;
+    if (consistencyRateEl) {
+        const target = 48; // Standard 4 workouts per week in 12 weeks
+        const rate = Math.min(100, Math.round((activeDaysCount / target) * 100));
+        consistencyRateEl.textContent = `${rate}% Consistent`;
+    }
+}
+
+// ============================================================================
+// --- BARBELL PLATE CALCULATOR ENGINE ---
+// ============================================================================
+let selectedBarWeight = 20;
+let activePlateInputEl = null;
+
+function openPlateCalcModal(exName = '', triggerBtn = null) {
+    if (triggerBtn) {
+        const wrap = triggerBtn.closest('.set-row-wrap') || triggerBtn.closest('.set-row') || triggerBtn.closest('.flex-col');
+        activePlateInputEl = wrap ? wrap.querySelector('.weight-input') : null;
+    } else {
+        activePlateInputEl = null;
+    }
+
+    const modal = document.getElementById('plate-calc-modal');
+    if (!modal) return;
+
+    const targetInput = document.getElementById('plate-calc-target');
+    const subTitle = document.getElementById('plate-calc-subtitle');
+    if (subTitle) {
+        subTitle.textContent = exName ? `Plate math for ${exName}` : 'Instant barbell plate math per side';
+    }
+
+    let initialWeight = 70;
+    if (activePlateInputEl && parseFloat(activePlateInputEl.value) > 0) {
+        initialWeight = parseFloat(activePlateInputEl.value);
+    }
+    if (targetInput) targetInput.value = initialWeight;
+
+    selectBarWeight(selectedBarWeight || 20);
+    modal.classList.remove('hidden-view');
+}
+
+function closePlateCalcModal() {
+    const modal = document.getElementById('plate-calc-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function selectBarWeight(barWt) {
+    selectedBarWeight = barWt;
+    ['20', '15', '10', '0'].forEach(bw => {
+        const btn = document.getElementById('bar-weight-' + bw);
+        if (btn) {
+            if (parseInt(bw) === barWt) {
+                btn.className = 'bar-weight-btn p-2 rounded-xl border border-brand-500 bg-brand-500/20 text-brand-400 font-bold transition-all cursor-pointer';
+            } else {
+                btn.className = 'bar-weight-btn p-2 rounded-xl border border-gray-700 bg-dark-100 text-gray-300 font-bold hover:border-gray-500 transition-all cursor-pointer';
+            }
+        }
+    });
+    calculateBarbellPlates();
+}
+
+function adjustPlateWeight(delta) {
+    const targetInput = document.getElementById('plate-calc-target');
+    if (!targetInput) return;
+    let curr = parseFloat(targetInput.value) || 0;
+    curr = Math.max(selectedBarWeight, curr + delta);
+    targetInput.value = curr;
+    calculateBarbellPlates();
+}
+
+function calculateBarbellPlates() {
+    const targetInput = document.getElementById('plate-calc-target');
+    const targetWeight = parseFloat(targetInput ? targetInput.value : 0) || 0;
+    const barWeight = selectedBarWeight;
+
+    const remainingWeight = Math.max(0, targetWeight - barWeight);
+    const perSideWeight = remainingWeight / 2;
+
+    const plateTypes = [
+        { weight: 25, color: '#ef4444', label: '25kg', h: 'h-24', w: 'w-4', textCol: 'text-white' }, // Red
+        { weight: 20, color: '#3b82f6', label: '20kg', h: 'h-22', w: 'w-4', textCol: 'text-white' }, // Blue
+        { weight: 15, color: '#eab308', label: '15kg', h: 'h-20', w: 'w-3.5', textCol: 'text-black' }, // Yellow
+        { weight: 10, color: '#22c55e', label: '10kg', h: 'h-18', w: 'w-3.5', textCol: 'text-white' }, // Green
+        { weight: 5,  color: '#f3f4f6', label: '5kg',  h: 'h-16', w: 'w-3', textCol: 'text-black' }, // White
+        { weight: 2.5, color: '#18181b', label: '2.5kg', h: 'h-14', w: 'w-2.5', textCol: 'text-white', border: 'border border-gray-500' }, // Black
+        { weight: 1.25, color: '#9ca3af', label: '1.25', h: 'h-12', w: 'w-2', textCol: 'text-black' } // Silver
+    ];
+
+    let toLoad = perSideWeight;
+    const loadedPlates = [];
+
+    plateTypes.forEach(p => {
+        const count = Math.floor(toLoad / p.weight);
+        if (count > 0) {
+            loadedPlates.push({ ...p, count: count });
+            toLoad = Math.round((toLoad - (count * p.weight)) * 100) / 100;
+        }
+    });
+
+    const actualPerSide = perSideWeight - toLoad;
+    const actualTotal = barWeight + (actualPerSide * 2);
+
+    const sideEl = document.getElementById('plate-calc-side-weight');
+    const totalEl = document.getElementById('plate-calc-actual-total');
+    if (sideEl) sideEl.textContent = `${actualPerSide.toFixed(1)} kg`;
+    if (totalEl) totalEl.textContent = `${actualTotal.toFixed(1)} kg ${toLoad > 0 ? `(Unrounded: ${toLoad * 2}kg remaining)` : ''}`;
+
+    // Visual sleeve rendering
+    const visualContainer = document.getElementById('visual-plates-container');
+    if (visualContainer) {
+        if (loadedPlates.length === 0) {
+            visualContainer.innerHTML = `<span class="text-xs text-gray-500 italic py-2">Barbell empty (Collar only)</span>`;
+        } else {
+            let platesHtml = '';
+            loadedPlates.forEach(p => {
+                for (let i = 0; i < p.count; i++) {
+                    platesHtml += `
+                        <div class="relative ${p.w} ${p.h} rounded-sm shadow-md flex items-center justify-center cursor-default shrink-0 ${p.border || ''}" style="background-color: ${p.color};" title="${p.label}">
+                            <span class="text-[7px] font-black -rotate-90 select-none ${p.textCol}">${p.label}</span>
+                        </div>
+                    `;
+                }
+            });
+            // End collar ring
+            platesHtml += `<div class="w-2.5 h-8 bg-gray-400 rounded-sm border border-gray-600 shadow-sm ml-1 shrink-0" title="Spring Clip / Collar"></div>`;
+            visualContainer.innerHTML = platesHtml;
+        }
+    }
+
+    // Breakdown tags
+    const tagsContainer = document.getElementById('plates-breakdown-tags');
+    if (tagsContainer) {
+        if (loadedPlates.length === 0) {
+            tagsContainer.innerHTML = `<span class="text-[11px] text-gray-400">Load just the empty barbell.</span>`;
+        } else {
+            tagsContainer.innerHTML = loadedPlates.map(p => `
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm" style="background-color: ${p.color}20; border-color: ${p.color}80; color: ${p.color};">
+                    <span class="w-2 h-2 rounded-full inline-block" style="background-color: ${p.color};"></span>
+                    ${p.count}× ${p.label} per side
+                </span>
+            `).join('');
+        }
+    }
+}
+
+function applyPlateWeightToActiveSet() {
+    const targetInput = document.getElementById('plate-calc-target');
+    const wt = parseFloat(targetInput ? targetInput.value : 0);
+    if (!wt || wt <= 0) {
+        closePlateCalcModal();
+        return;
+    }
+
+    if (activePlateInputEl) {
+        activePlateInputEl.value = wt;
+        saveActiveWorkoutSnapshot();
+    }
+    closePlateCalcModal();
+    if (window.confetti) confetti({ particleCount: 20, spread: 35 });
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gymsolo-cache-v23';
+const CACHE_NAME = 'gymsolo-cache-v25';
 const urlsToCache = [
   './index.html',
   './app.js',
