@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GymSolo - Modern Fitness</title>
+    <link rel="manifest" href="./manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: { 
+                extend: { 
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { 
+                        brand: { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04', 900: '#713f12' }, 
+                        dark: { 100: '#18181b', 200: '#0f0f11', 300: '#000000' } 
+                    } 
+                } 
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #000000; color: #f3f4f6; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .true-black { background-color: #000000 !important; }
+        .hidden-view { display: none !important; }
+        .step-container { display: none; }
+        .step-container.active { display: block; animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #eab308; border-radius: 4px; }
+        .neon-shadow { box-shadow: 0 0 12px rgba(250, 204, 21, 0.25); }
+        .tab-btn.active { color: #facc15; border-bottom: 2px solid #facc15; }
+        .nav-bottom-btn.active { color: #facc15; }
+        .progress-ring__circle { transition: stroke-dashoffset 0.5s ease-in-out; transform: rotate(-90deg); transform-origin: 50% 50%; }
+        
+        /* High contrast black text on primary yellow buttons */
+        button.bg-brand-600, button.bg-brand-500, a.bg-brand-600 {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        button.bg-brand-600 i, button.bg-brand-500 i {
+            color: #000000 !important;
+        }
+        button.bg-brand-600:hover, button.bg-brand-500:hover {
+            color: #000000 !important;
+        }
+        
+        /* Swipe to Delete */
+        .swipe-container { overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none; }
+        .swipe-container::-webkit-scrollbar { display: none; }
+        .swipe-item { scroll-snap-align: start; min-width: 100%; flex-shrink: 0; }
+        .swipe-delete { scroll-snap-align: start; min-width: 80px; flex-shrink: 0; }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased pb-20 md:pb-0">
+    <div id="workout-progress-bar" class="fixed top-0 left-0 h-1 bg-brand-400 z-50 transition-all duration-300 shadow-[0_0_8px_rgba(250,204,21,0.8)] hidden-view" style="width: 0%;"></div>
+    
+    <!-- SKELETON OVERLAY -->
+    <div id="skeleton-overlay" class="fixed inset-0 z-40 bg-dark-300/80 backdrop-blur flex flex-col p-8 hidden-view">
+        <div class="w-full h-12 bg-dark-100 rounded-lg animate-pulse mb-6 mt-16"></div>
+        <div class="w-2/3 h-8 bg-dark-100 rounded animate-pulse mb-8"></div>
+        <div class="grid grid-cols-2 gap-4"><div class="h-32 bg-dark-100 rounded-2xl animate-pulse"></div><div class="h-32 bg-dark-100 rounded-2xl animate-pulse"></div></div>
+    </div>
+
+    <!-- ONBOARDING FLOW -->
+    <div id="onboarding-flow" class="min-h-screen flex items-center justify-center p-4">
+        <!-- Kept exactly the same as previously generated for brevity to save tokens -->
+        <div class="bg-dark-200 border border-gray-800 rounded-2xl p-8 max-w-2xl w-full neon-shadow relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gray-800"><div id="onboard-progress" class="h-full bg-brand-400 transition-all duration-300" style="width: 14%;"></div></div>
+            <div class="text-center mb-6 mt-2">
+                <h1 class="text-3xl font-bold text-brand-400 tracking-wider">GymSolo</h1>
+                <p class="text-gray-400 text-sm mt-1">Configure your ultimate physique.</p>
+            </div>
+
+            <!-- Trainer & Admin Quick Access Banner -->
+            <div class="bg-dark-300 border border-brand-900/50 hover:border-brand-500/50 rounded-xl p-3.5 mb-6 transition-all flex items-center justify-between gap-3 shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-400/10 border border-brand-400/30 flex items-center justify-center text-brand-400 shrink-0">
+                        <i class="fas fa-user-shield text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-white leading-tight">Trainer or Gym Owner?</p>
+                        <p class="text-[10px] text-gray-400">Manage clients, custom workouts & diets</p>
+                    </div>
+                </div>
+                <button type="button" onclick="openAdminPortal()" class="text-xs font-extrabold bg-brand-400 hover:bg-brand-300 text-black px-3.5 py-2 rounded-xl transition-all shadow-[0_0_10px_rgba(250,204,21,0.25)] flex items-center gap-1.5 shrink-0">
+                    <span>Admin Portal</span>
+                    <i class="fas fa-arrow-right text-[10px]"></i>
+                </button>
+            </div>
+
+            <div id="step-1" class="step-container active">
+                <h2 class="text-xl font-semibold mb-4 text-white">Step 1: The Basics</h2>
+                <div class="space-y-4">
+                    <div><label class="block text-sm text-gray-400 mb-1">Your Name</label><input type="text" id="ob-name" class="w-full bg-dark-100 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-brand-400" placeholder="e.g. Alex"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">Height (cm)</label><input type="number" id="ob-height" class="w-full bg-dark-100 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-brand-400" placeholder="180"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">Weight (kg)</label><input type="number" id="ob-weight" class="w-full bg-dark-100 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-brand-400" placeholder="75"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">When do you usually go to the gym?</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button type="button" onclick="selectWorkoutTiming('morning')" id="timing-btn-morning" class="timing-btn p-3.5 rounded-xl border-2 border-brand-400 bg-brand-900/30 text-white flex flex-col items-center justify-center transition-all shadow-[0_0_15px_rgba(250,204,21,0.25)]">
+                                <span class="text-2xl mb-1">🌅</span>
+                                <span class="font-bold text-sm">Morning Gym</span>
+                                <span class="text-[10px] text-brand-300">6:00 AM – 11:00 AM</span>
+                            </button>
+                            <button type="button" onclick="selectWorkoutTiming('evening')" id="timing-btn-evening" class="timing-btn p-3.5 rounded-xl border border-gray-700 bg-dark-100 text-gray-400 hover:border-gray-500 hover:text-white flex flex-col items-center justify-center transition-all">
+                                <span class="text-2xl mb-1">🌙</span>
+                                <span class="font-bold text-sm">Evening Gym</span>
+                                <span class="text-[10px] text-gray-400">4:00 PM – 10:00 PM</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end">
+                    <button type="button" onclick="nextStep(2)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: CHOOSE YOUR PATH -->
+            <div id="step-2" class="step-container">
+                <h2 class="text-xl font-semibold mb-1 text-white">Step 2: Choose Your Primary Goal</h2>
+                <p class="text-gray-400 text-xs mb-4">We will calculate your personalized weekly and monthly targets based on this.</p>
+                <div class="grid grid-cols-1 gap-3.5">
+                    <button type="button" onclick="selectGoal('Weight Loss', this)" id="goal-btn-loss" class="goal-btn group bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-2xl text-left transition-all flex items-center justify-between">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center text-xl shrink-0">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-white text-base block">Weight Loss / Fat Cut</span>
+                                <span class="text-xs text-gray-400">Burn fat, shred down & protect lean muscle mass</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-500 group-hover:text-brand-400 text-xs transition-colors"></i>
+                    </button>
+                    <button type="button" onclick="selectGoal('Weight Gain', this)" id="goal-btn-gain" class="goal-btn group bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-2xl text-left transition-all flex items-center justify-between">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-xl shrink-0">
+                                <i class="fas fa-dumbbell"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-white text-base block">Weight Gain / Muscle Building</span>
+                                <span class="text-xs text-gray-400">Pack on solid muscle size, power & total body mass</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-500 group-hover:text-brand-400 text-xs transition-colors"></i>
+                    </button>
+                    <button type="button" onclick="selectGoal('Lean Bulk', this)" id="goal-btn-bulk" class="goal-btn group bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-2xl text-left transition-all flex items-center justify-between">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center text-xl shrink-0">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-white text-base block">Lean Bulk & Recomp</span>
+                                <span class="text-xs text-gray-400">Steady clean muscle gain with minimal fat accumulation</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-500 group-hover:text-brand-400 text-xs transition-colors"></i>
+                    </button>
+                </div>
+                <div class="mt-8 flex justify-between items-center">
+                    <button type="button" onclick="prevStep(1)" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Back</button>
+                    <button type="button" onclick="nextStep(3)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: TARGET WEIGHT & WEEKLY/MONTHLY PLAN -->
+            <div id="step-3" class="step-container">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 id="step3-title" class="text-xl font-semibold text-white">How many KG do you want to lose?</h2>
+                    <span id="step3-goal-badge" class="text-[10px] bg-brand-900/40 text-brand-400 border border-brand-500/40 px-2 py-0.5 rounded-full font-bold uppercase">Weight Loss</span>
+                </div>
+                <p id="step3-subtitle" class="text-xs text-gray-400 mb-4">Current Weight: <span id="step3-curr-weight" class="text-brand-400 font-bold">75 kg</span>. Select or enter how many KG you want to target.</p>
+                
+                <!-- Quick Delta KG Selector Pills -->
+                <div class="mb-4">
+                    <label class="block text-xs text-gray-400 font-medium mb-2">Quick Select Target KG:</label>
+                    <div class="grid grid-cols-5 gap-2" id="kg-delta-pills">
+                        <button type="button" onclick="setKgDelta(3)" data-kg="3" class="kg-delta-btn py-2.5 rounded-xl border border-gray-700 bg-dark-100 text-white font-bold text-xs hover:border-brand-400 transition-all">3 kg</button>
+                        <button type="button" onclick="setKgDelta(5)" data-kg="5" class="kg-delta-btn py-2.5 rounded-xl border-2 border-brand-400 bg-brand-900/30 text-brand-300 font-extrabold text-xs shadow-[0_0_10px_rgba(250,204,21,0.25)] transition-all">5 kg</button>
+                        <button type="button" onclick="setKgDelta(8)" data-kg="8" class="kg-delta-btn py-2.5 rounded-xl border border-gray-700 bg-dark-100 text-white font-bold text-xs hover:border-brand-400 transition-all">8 kg</button>
+                        <button type="button" onclick="setKgDelta(10)" data-kg="10" class="kg-delta-btn py-2.5 rounded-xl border border-gray-700 bg-dark-100 text-white font-bold text-xs hover:border-brand-400 transition-all">10 kg</button>
+                        <button type="button" onclick="setKgDelta(15)" data-kg="15" class="kg-delta-btn py-2.5 rounded-xl border border-gray-700 bg-dark-100 text-white font-bold text-xs hover:border-brand-400 transition-all">15 kg</button>
+                    </div>
+                </div>
+
+                <!-- Custom KG Delta Input & Target Weight Box -->
+                <div class="bg-dark-100 border border-gray-700 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between gap-4 mb-3">
+                        <label class="text-xs text-gray-400 font-semibold" id="step3-input-label">Custom Target Amount:</label>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="adjustKgDelta(-1)" class="w-8 h-8 rounded-lg bg-dark-300 hover:bg-dark-400 text-white border border-gray-600 flex items-center justify-center font-bold text-sm transition-all">-</button>
+                            <div class="relative w-20">
+                                <input type="number" id="ob-kg-delta" min="1" max="50" step="0.5" value="5" oninput="onKgDeltaInput(this.value)" class="w-full bg-dark-300 border border-brand-500/50 rounded-lg py-1.5 px-2 text-center text-white font-bold text-sm focus:outline-none focus:border-brand-400">
+                            </div>
+                            <button type="button" onclick="adjustKgDelta(1)" class="w-8 h-8 rounded-lg bg-dark-300 hover:bg-dark-400 text-white border border-gray-600 flex items-center justify-center font-bold text-sm transition-all">+</button>
+                            <span class="text-xs text-gray-400 font-bold ml-1">KG</span>
+                        </div>
+                    </div>
+
+                    <!-- Target Weight Banner -->
+                    <div class="bg-dark-200/90 border border-brand-500/30 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Target Goal Weight</span>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs text-gray-400 line-through" id="step3-from-weight">75 kg</span>
+                                <i class="fas fa-arrow-right text-[10px] text-brand-400"></i>
+                                <span class="text-xl font-black text-white" id="step3-target-weight">70.0 kg</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span id="step3-delta-badge" class="text-xs bg-brand-500/20 text-brand-300 border border-brand-500/40 px-2.5 py-1 rounded-lg font-extrabold">-5.0 kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SCIENTIFIC WEEKLY & MONTHLY PLAN BLUEPRINT -->
+                <div class="bg-gradient-to-br from-dark-100 via-dark-200 to-dark-100 border border-brand-500/40 rounded-2xl p-4 shadow-xl mb-4">
+                    <div class="flex items-center justify-between mb-3 border-b border-gray-800 pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-calendar-check text-brand-400 text-sm"></i>
+                            <h3 class="text-sm font-bold text-white">Your Custom Plan Blueprint</h3>
+                        </div>
+                        <span class="text-[10px] text-brand-400 bg-brand-900/30 border border-brand-500/30 px-2 py-0.5 rounded font-extrabold">Scientific Pacing</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <!-- Weekly Plan -->
+                        <div class="bg-dark-300/80 border border-gray-700/80 rounded-xl p-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">Weekly Plan</span>
+                                <i class="fas fa-chart-line text-xs text-brand-400"></i>
+                            </div>
+                            <p class="text-lg font-black text-white" id="plan-weekly-rate">-0.50 kg <span class="text-xs font-normal text-gray-400">/ week</span></p>
+                            <p class="text-[10px] text-gray-400 mt-1 leading-tight" id="plan-weekly-desc">Healthy fat burn rate with -500 kcal deficit</p>
+                        </div>
+
+                        <!-- Monthly Plan -->
+                        <div class="bg-dark-300/80 border border-gray-700/80 rounded-xl p-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] text-gray-400 font-bold uppercase">Monthly Plan</span>
+                                <i class="fas fa-bullseye text-xs text-green-400"></i>
+                            </div>
+                            <p class="text-lg font-black text-white" id="plan-monthly-rate">-2.1 kg <span class="text-xs font-normal text-gray-400">/ month</span></p>
+                            <p class="text-[10px] text-gray-400 mt-1 leading-tight" id="plan-monthly-desc">Consistent progress without muscle loss</p>
+                        </div>
+                    </div>
+
+                    <!-- Estimated Timeline -->
+                    <div class="bg-brand-900/20 border border-brand-500/30 rounded-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold shrink-0">
+                                <i class="fas fa-hourglass-half"></i>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase block">Estimated Timeline</span>
+                                <span class="text-sm font-extrabold text-white" id="plan-timeline-text">10 Weeks (~2.3 Months)</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-gray-400 block">Target Date</span>
+                            <span class="text-xs font-bold text-brand-300" id="plan-target-date">Dec 2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-between items-center">
+                    <button type="button" onclick="prevStep(2)" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Back</button>
+                    <button type="button" onclick="nextStep(4)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 4: CHOOSE YOUR SPLIT -->
+            <div id="step-4" class="step-container">
+                <h2 class="text-xl font-semibold mb-1 text-white">Step 4: Choose Your Split</h2>
+                <p class="text-gray-400 text-xs mb-4">Select how many days a week you want to train.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <button type="button" onclick="selectSplit('3-day', true)" id="split-btn-3day" class="split-btn bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-xl text-left transition-all">
+                        <span class="font-bold text-white block mb-1 text-base">3-Day Split</span>
+                        <span class="text-xs text-gray-400">Full Body (Mon, Wed, Fri)</span>
+                    </button>
+                    <button type="button" onclick="selectSplit('4-day', true)" id="split-btn-4day" class="split-btn bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-xl text-left transition-all">
+                        <span class="font-bold text-white block mb-1 text-base">4-Day Split</span>
+                        <span class="text-xs text-gray-400">Upper / Lower (Mon, Tue, Thu, Fri)</span>
+                    </button>
+                    <button type="button" onclick="selectSplit('5-day', true)" id="split-btn-5day" class="split-btn bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-xl text-left transition-all">
+                        <span class="font-bold text-white block mb-1 text-base">5-Day Split</span>
+                        <span class="text-xs text-gray-400">Push / Pull / Legs + Upper / Lower</span>
+                    </button>
+                    <button type="button" onclick="selectSplit('6-day', true)" id="split-btn-6day" class="split-btn bg-dark-100 border border-gray-700 hover:border-brand-400 p-4 rounded-xl text-left transition-all">
+                        <span class="font-bold text-white block mb-1 text-base">6-Day Split</span>
+                        <span class="text-xs text-gray-400">Push / Pull / Legs (2x Frequency)</span>
+                    </button>
+                </div>
+                <div class="mt-8 flex justify-between items-center">
+                    <button type="button" onclick="prevStep(3)" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Back</button>
+                    <button type="button" onclick="nextStep(5)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 5: NUTRITION TARGET -->
+            <div id="step-5" class="step-container">
+                <h2 class="text-xl font-semibold mb-1 text-white">Step 5: Your Nutrition Target</h2>
+                <p class="text-gray-400 text-xs mb-4">Calculated from your body metrics and weekly projection plan.</p>
+                <div class="bg-dark-100 border border-brand-500/50 p-6 rounded-2xl text-center shadow-[0_0_15px_rgba(250,204,21,0.15)] mb-4">
+                    <div class="flex items-center justify-center gap-2 mb-1">
+                        <i class="fas fa-fire-alt text-brand-400"></i>
+                        <p class="text-gray-400 text-sm font-bold uppercase">Daily Calories</p>
+                    </div>
+                    <p class="text-4xl font-extrabold text-white mb-2"><span id="m-cals" class="text-brand-400">0</span> kcal</p>
+                    <span id="m-plan-note" class="text-xs text-gray-400 bg-dark-300 px-3 py-1 rounded-full border border-gray-700 inline-block mb-4">Balanced Target</span>
+                    
+                    <div class="grid grid-cols-3 gap-3 border-t border-gray-700 pt-5">
+                        <div class="bg-dark-200 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-gray-400 text-[10px] tracking-wider uppercase mb-1">Protein</p>
+                            <p class="text-lg font-bold text-white" id="m-pro">0g</p>
+                            <span class="text-[9px] text-brand-400">Muscle Protection</span>
+                        </div>
+                        <div class="bg-dark-200 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-gray-400 text-[10px] tracking-wider uppercase mb-1">Carbs</p>
+                            <p class="text-lg font-bold text-white" id="m-carb">0g</p>
+                            <span class="text-[9px] text-orange-400">Workout Energy</span>
+                        </div>
+                        <div class="bg-dark-200 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-gray-400 text-[10px] tracking-wider uppercase mb-1">Fats</p>
+                            <p class="text-lg font-bold text-white" id="m-fat">0g</p>
+                            <span class="text-[9px] text-yellow-400">Hormone Health</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-between items-center">
+                    <button type="button" onclick="prevStep(4)" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Back</button>
+                    <button type="button" onclick="nextStep(6)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 6: MAP WEEK -->
+            <div id="step-6" class="step-container">
+                <h2 class="text-xl font-semibold mb-1 text-white">Step 6: Map Your Week</h2>
+                <p class="text-gray-400 text-xs mb-4">Customize which workout routine you do on each day of the week.</p>
+                <div id="schedule-container" class="space-y-2.5 mb-6"></div>
+                <div class="mt-8 flex justify-between items-center">
+                    <button type="button" onclick="prevStep(5)" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Back</button>
+                    <button type="button" onclick="nextStep(7)" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all flex items-center gap-2">
+                        <span>Next</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 7: ALL SET SUMMARY -->
+            <div id="step-7" class="step-container">
+                <div class="text-center mb-6">
+                    <i class="fas fa-check-circle text-5xl text-brand-400 mb-3 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]"></i>
+                    <h2 class="text-2xl font-bold text-white mb-1">You're All Set!</h2>
+                    <p class="text-gray-400 text-xs">Here is your tailored blueprint. Tap Launch to start crushing your goals.</p>
+                </div>
+
+                <!-- Summary Card -->
+                <div class="bg-dark-100 border border-brand-500/40 rounded-2xl p-4 shadow-lg mb-6 text-left space-y-3">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Athlete Name</span>
+                        <span class="text-sm font-extrabold text-white" id="sum-name">Athlete</span>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Goal & Target</span>
+                        <span class="text-sm font-extrabold text-brand-400" id="sum-goal-target">Weight Loss (-5.0 kg)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 border-b border-gray-800 pb-2">
+                        <div>
+                            <span class="text-[10px] text-gray-400 uppercase font-bold block">Weekly Plan</span>
+                            <span class="text-xs font-bold text-white" id="sum-weekly">-0.50 kg / wk</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-400 uppercase font-bold block">Monthly Plan</span>
+                            <span class="text-xs font-bold text-white" id="sum-monthly">-2.1 kg / mo</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Timeline</span>
+                        <span class="text-xs font-bold text-white" id="sum-timeline">10 Weeks (~2.3 Months)</span>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Training Split</span>
+                        <span class="text-xs font-bold text-white" id="sum-split">4-Day Split</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Daily Calories</span>
+                        <span class="text-xs font-bold text-brand-400" id="sum-cals">2,150 kcal</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center w-full">
+                    <button type="button" onclick="prevStep(6)" class="text-gray-400 hover:text-white transition-colors px-4 py-2">Back</button>
+                    <button type="button" onclick="finishOnboarding()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-8 py-3.5 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.35)] transition-all transform hover:scale-105 flex items-center gap-2">
+                        <span>Launch GymSolo</span>
+                        <i class="fas fa-rocket"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP INTERFACE -->
+    <div id="main-app" class="hidden-view min-h-screen flex flex-col">
+        <!-- Mobile Top Header -->
+        <header class="md:hidden bg-dark-200/95 backdrop-blur border-b border-gray-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <img id="mobile-gym-logo" src="" class="w-8 h-8 rounded-lg object-cover border border-brand-400 hidden-view shadow-sm">
+                <div class="leading-tight">
+                    <span id="mobile-gym-name" class="text-lg font-extrabold text-brand-400 tracking-wider block">GymSolo</span>
+                    <span id="mobile-gym-tagline" class="text-[9px] text-gray-400 font-semibold block hidden-view">Elite Training</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openAdminPortal()" class="text-[11px] font-bold bg-dark-100 hover:bg-dark-300 border border-brand-500/40 text-brand-400 px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-user-shield"></i> Trainer
+                </button>
+                <button onclick="openSettings()" class="w-8 h-8 bg-dark-100 hover:bg-dark-300 text-gray-300 rounded-lg flex items-center justify-center border border-gray-700 text-xs transition-colors">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Top Navbar (Desktop) -->
+        <nav class="bg-dark-200 border-b border-gray-800 sticky top-0 z-40 hidden md:block">
+            <div class="max-w-5xl mx-auto px-4 flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <img id="desktop-gym-logo" src="" class="w-10 h-10 rounded-xl object-cover border border-brand-400 hidden-view shadow-sm">
+                    <div>
+                        <span id="desktop-gym-name" class="text-2xl font-extrabold text-brand-400 tracking-wider block leading-tight">GymSolo</span>
+                        <span id="desktop-gym-tagline" class="text-[10px] text-gray-400 font-semibold block hidden-view">Elite Training & Strength</span>
+                    </div>
+                </div>
+                <div class="flex space-x-6 h-full">
+                    <button onclick="switchAppTab('dashboard')" id="nav-dashboard" class="tab-btn active font-semibold text-gray-400 hover:text-brand-400 h-full px-2 flex items-center border-b-2 border-transparent"><i class="fas fa-home mr-2"></i> Dashboard</button>
+                    <button onclick="switchAppTab('workout')" id="nav-workout" class="tab-btn font-semibold text-gray-400 hover:text-brand-400 h-full px-2 flex items-center border-b-2 border-transparent"><i class="fas fa-dumbbell mr-2"></i> Workout</button>
+                    <button onclick="switchAppTab('library')" id="nav-library" class="tab-btn font-semibold text-gray-400 hover:text-brand-400 h-full px-2 flex items-center border-b-2 border-transparent"><i class="fas fa-book-open mr-2"></i> Library</button>
+                    <button onclick="switchAppTab('diet')" id="nav-diet" class="tab-btn font-semibold text-gray-400 hover:text-brand-400 h-full px-2 flex items-center border-b-2 border-transparent"><i class="fas fa-utensils mr-2"></i> Diet</button>
+                    <button onclick="switchAppTab('progress')" id="nav-progress" class="tab-btn font-semibold text-gray-400 hover:text-brand-400 h-full px-2 flex items-center border-b-2 border-transparent"><i class="fas fa-chart-line mr-2"></i> Progress</button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openAdminPortal()" class="text-xs bg-dark-100 hover:bg-dark-300 border border-brand-500/40 text-brand-400 px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 font-bold shadow-sm">
+                        <i class="fas fa-user-shield"></i> Trainer Portal
+                    </button>
+                    <button onclick="openSettings()" class="w-10 h-10 bg-dark-100 hover:bg-dark-300 text-gray-400 rounded-full flex items-center justify-center border border-gray-700 transition-colors"><i class="fas fa-cog"></i></button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Bottom Navbar (Mobile) -->
+        <nav class="md:hidden fixed bottom-0 w-full bg-dark-200 border-t border-gray-800 z-50 flex justify-around items-center h-16 pb-safe">
+            <button onclick="switchAppTab('dashboard')" id="nav-bottom-dashboard" class="nav-bottom-btn active w-full h-full text-brand-400 flex flex-col items-center justify-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-[10px]">Home</span></button>
+            <button onclick="switchAppTab('workout')" id="nav-bottom-workout" class="nav-bottom-btn w-full h-full text-gray-500 flex flex-col items-center justify-center"><i class="fas fa-dumbbell text-xl mb-1"></i><span class="text-[10px]">Workout</span></button>
+            <button onclick="switchAppTab('library')" id="nav-bottom-library" class="nav-bottom-btn w-full h-full text-gray-500 flex flex-col items-center justify-center"><i class="fas fa-book-open text-xl mb-1"></i><span class="text-[10px]">Library</span></button>
+            <button onclick="switchAppTab('diet')" id="nav-bottom-diet" class="nav-bottom-btn w-full h-full text-gray-500 flex flex-col items-center justify-center"><i class="fas fa-utensils text-xl mb-1"></i><span class="text-[10px]">Diet</span></button>
+            <button onclick="switchAppTab('progress')" id="nav-bottom-progress" class="nav-bottom-btn w-full h-full text-gray-500 flex flex-col items-center justify-center"><i class="fas fa-chart-line text-xl mb-1"></i><span class="text-[10px]">Progress</span></button>
+        </nav>
+
+        <main class="flex-1 max-w-5xl mx-auto w-full p-4 py-8">
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="app-tab space-y-6">
+                <header class="flex justify-between items-end border-b border-gray-800 pb-4 flex-wrap gap-4">
+                    <div>
+                        <p class="text-gray-400 uppercase tracking-widest text-xs mb-1" id="dash-date">Today</p>
+                        <h1 class="text-3xl font-bold text-white flex items-center gap-2 flex-wrap">
+                            <span>Today is</span> 
+                            <span class="text-brand-400" id="dash-dayname">Tuesday</span>
+                            <button type="button" id="btn-reset-today" onclick="selectDashboardDay(null)" class="text-[10px] bg-dark-100 hover:bg-dark-300 border border-brand-500/40 text-brand-400 px-2 py-0.5 rounded-full font-bold hidden-view transition-all">
+                                <i class="fas fa-undo mr-1"></i> Today
+                            </button>
+                        </h1>
+                        <div class="flex items-center gap-4 mt-2">
+                            <p class="text-xl text-gray-300 font-semibold" id="dash-split-name">Workout Routine</p>
+                            <!-- Streaks -->
+                            <div class="bg-dark-100 border border-gray-700 px-3 py-1 rounded-full flex items-center shadow-[0_0_8px_rgba(234,179,8,0.2)]">
+                                <i class="fas fa-fire text-orange-500 mr-2"></i><span class="text-sm text-white font-bold" id="dash-streak">0</span>
+                            </div>
+                            <!-- Badges -->
+                            <div id="dash-badges" class="flex gap-1"></div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- GYM BUSINESS QUICK ACTION BUTTONS -->
+                <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                    <button type="button" onclick="openVipCardModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-id-badge"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white block">VIP Pass</span>
+                        <span class="text-[9px] text-gray-400">Digital ID & QR</span>
+                    </button>
+                    <button type="button" onclick="openSupplementBarModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-cocktail"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white block">Shake Bar</span>
+                        <span class="text-[9px] text-gray-400">Supplements</span>
+                    </button>
+                    <button type="button" onclick="openCertificatesModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white block">Certificates</span>
+                        <span class="text-[9px] text-gray-400">Viral Status</span>
+                    </button>
+                </div>
+
+                <!-- LIVE GYM CROWD / RUSH METER -->
+                <div class="bg-gradient-to-br from-dark-200 via-dark-100 to-dark-200 rounded-2xl border border-gray-800 p-4 shadow-lg flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-3.5">
+                        <div id="crowd-meter-icon-wrap" class="w-11 h-11 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white">Live Gym Rush</h3>
+                                <span id="crowd-status-badge" class="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-bold uppercase">🟢 Quiet (7 Members)</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5" id="crowd-status-desc">Squat racks and dumbbells are free! Great time to train.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="openRushScheduleModal()" class="text-[11px] bg-dark-100 hover:bg-dark-300 text-brand-400 border border-brand-500/30 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-clock"></i> Peak Hours
+                    </button>
+                </div>
+
+                <!-- PERSONAL TRAINING (PT) SESSION COUNTER CARD -->
+                <div id="dash-pt-package-card" class="bg-gradient-to-br from-dark-200 to-dark-100 rounded-2xl border border-brand-500/40 p-4 shadow-lg hidden-view">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/40 text-brand-400 flex items-center justify-center text-base shrink-0">
+                                <i class="fas fa-user-ninja"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-bold text-white">Personal Training Coaching</h3>
+                                    <span id="pt-status-badge" class="text-[9px] bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded font-extrabold uppercase">Active Package</span>
+                                </div>
+                                <p class="text-xs text-gray-400" id="pt-coach-name">Assigned Coach: Head Coach</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="openPtRenewalWhatsApp()" class="text-[11px] bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer">
+                            <i class="fab fa-whatsapp"></i> Chat Coach
+                        </button>
+                    </div>
+
+                    <!-- PT Progress Bar -->
+                    <div class="bg-dark-300 rounded-full h-2 overflow-hidden mb-2 border border-gray-700">
+                        <div id="pt-progress-bar" class="bg-brand-400 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(250,204,21,0.5)]" style="width: 66%;"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center text-xs text-gray-300">
+                        <span>Sessions Done: <strong class="text-white" id="pt-sessions-done">8</strong> / <span id="pt-sessions-total">12</span></span>
+                        <span id="pt-sessions-left-wrap">Remaining: <strong class="text-brand-400 font-bold" id="pt-sessions-left">4 Sessions</strong></span>
+                    </div>
+
+                    <div id="pt-renewal-warning" class="hidden-view mt-3 pt-2.5 border-t border-brand-500/30 flex items-center justify-between text-xs text-amber-300">
+                        <span><i class="fas fa-exclamation-circle mr-1"></i> Only <strong id="pt-renewal-sessions-num">2 sessions</strong> left in this package!</span>
+                        <button type="button" onclick="openPtRenewalWhatsApp()" class="font-bold underline text-brand-400 hover:text-white cursor-pointer">Renew Package &rarr;</button>
+                    </div>
+                </div>
+
+                <!-- GYM ANNOUNCEMENTS NOTICE BANNER -->
+                <div id="dash-announcement-banner" class="hidden-view rounded-2xl p-4 bg-gradient-to-r from-dark-100 via-dark-300 to-dark-100 border border-brand-500/40 shadow-lg relative overflow-hidden transition-all">
+                    <div class="flex items-start justify-between gap-3 relative z-10">
+                        <div class="flex items-start gap-3">
+                            <div id="announcement-icon-wrap" class="w-10 h-10 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center font-bold text-base shrink-0 mt-0.5">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                                    <span id="announcement-badge" class="text-[9px] bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded font-extrabold uppercase">Notice</span>
+                                    <h4 id="announcement-title-display" class="text-sm font-bold text-white">Gym Announcement</h4>
+                                </div>
+                                <p id="announcement-body-display" class="text-xs text-gray-300 leading-relaxed whitespace-pre-line"></p>
+                                <p id="announcement-meta-display" class="text-[10px] text-gray-500 mt-1"></p>
+                            </div>
+                        </div>
+                        <button onclick="dismissAnnouncementBanner()" class="text-gray-400 hover:text-white p-1 text-sm shrink-0" title="Dismiss Notice"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+
+                <!-- MEMBERSHIP EXPIRY WARNING BANNER -->
+                <div id="dash-membership-alert-banner" class="hidden-view rounded-2xl p-4 border border-red-500/40 bg-gradient-to-r from-red-950/40 via-dark-200 to-red-950/20 shadow-xl flex items-center justify-between flex-wrap gap-4 transition-all">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center font-bold text-base shrink-0 animate-bounce">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <h4 id="membership-alert-title" class="text-sm font-extrabold text-white">Membership Expiring Soon!</h4>
+                            <p id="membership-alert-desc" class="text-xs text-gray-300">Your gym pass will expire in <span id="membership-alert-days" class="text-amber-400 font-bold">3 days</span>. Renew on time to avoid interruption.</p>
+                        </div>
+                    </div>
+                    <button id="membership-renew-btn" onclick="openMembershipRenewWhatsApp()" class="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-green-500/20">
+                        <i class="fab fa-whatsapp text-sm"></i> Renew with Gym (WhatsApp)
+                    </button>
+                </div>
+
+                <!-- FRONT DESK ATTENDANCE & LEADERBOARD CARD -->
+                <div class="bg-gradient-to-br from-dark-200 to-dark-100 rounded-2xl border border-gray-800 p-4 shadow-lg flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white">Front Desk Attendance</h3>
+                                <span id="checkin-status-badge" class="text-[9px] bg-dark-300 text-gray-400 border border-gray-700 px-2 py-0.5 rounded-full font-bold uppercase">Not Checked In</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">Check in daily at gym to maintain your attendance & streak!</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-open-checkin" onclick="openCheckInModal()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition-all shadow-md shadow-brand-500/20 flex items-center gap-1.5">
+                            <i class="fas fa-check-circle"></i> Check In
+                        </button>
+                        <button onclick="openLeaderboardModal()" class="bg-dark-100 hover:bg-dark-300 text-brand-400 border border-brand-500/30 font-bold px-3 py-2 rounded-xl text-xs transition-all flex items-center gap-1.5">
+                            <i class="fas fa-trophy"></i> Leaderboard
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Membership Countdown Widget -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden shadow-lg mb-4 flex items-center justify-between p-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-brand-900/30 rounded-full flex items-center justify-center border border-brand-500/50">
+                            <i class="fas fa-id-card text-brand-400 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs font-bold uppercase">Membership Status</p>
+                            <h3 class="text-white text-lg font-bold">Active</h3>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-3xl font-bold text-brand-400" id="dash-membership-days">30</p>
+                        <p class="text-gray-500 text-xs uppercase">Days Left</p>
+                    </div>
+                </div>
+
+                <!-- WEIGHT GOAL & WEEKLY/MONTHLY PLAN CARD -->
+                <div id="dash-weight-goal-card" class="bg-gradient-to-br from-dark-200 to-dark-100 rounded-2xl border border-brand-500/30 p-4 shadow-lg mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-lg shrink-0">
+                                <i class="fas fa-bullseye"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-bold text-white" id="dash-goal-title">Weight Loss Blueprint</h3>
+                                    <span id="dash-goal-tag" class="text-[9px] bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded font-extrabold uppercase">In Progress</span>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5" id="dash-goal-subtitle">Target: 70.0 kg (-5.0 kg)</p>
+                            </div>
+                        </div>
+                        <button onclick="switchAppTab('progress')" class="text-[11px] bg-dark-100 hover:bg-dark-300 text-brand-400 border border-brand-500/30 px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1 shadow-sm">
+                            <span>Log Weight</span>
+                            <i class="fas fa-chevron-right text-[9px]"></i>
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="bg-dark-300 rounded-full h-2.5 overflow-hidden mb-3 border border-gray-700">
+                        <div id="dash-goal-progress-bar" class="bg-brand-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(250,204,21,0.5)]" style="width: 15%;"></div>
+                    </div>
+
+                    <!-- Plan Metrics: Weekly, Monthly, Remaining -->
+                    <div class="grid grid-cols-3 gap-2 text-center pt-2 border-t border-gray-800">
+                        <div class="bg-dark-100/70 p-2 rounded-xl border border-gray-800/80">
+                            <span class="text-[9px] text-gray-400 uppercase font-bold block">Weekly Plan</span>
+                            <span class="text-xs font-bold text-brand-400" id="dash-plan-weekly">-0.50 kg/wk</span>
+                        </div>
+                        <div class="bg-dark-100/70 p-2 rounded-xl border border-gray-800/80">
+                            <span class="text-[9px] text-gray-400 uppercase font-bold block">Monthly Plan</span>
+                            <span class="text-xs font-bold text-green-400" id="dash-plan-monthly">-2.1 kg/mo</span>
+                        </div>
+                        <div class="bg-dark-100/70 p-2 rounded-xl border border-gray-800/80">
+                            <span class="text-[9px] text-gray-400 uppercase font-bold block">Timeline</span>
+                            <span class="text-xs font-bold text-white" id="dash-plan-timeline">10 Wks</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Calendar -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 mb-6 shadow-lg mt-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-sm font-bold text-white"><i class="fas fa-calendar-alt text-brand-400 mr-2"></i> Weekly Schedule</h2>
+                        <span class="text-[10px] text-gray-400 font-medium">Tap any day to preview & train</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-1 overflow-x-auto pb-2" id="weekly-calendar">
+                        <!-- JS injected days -->
+                    </div>
+                </div>
+
+                <!-- Trackers (Moved up) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-gray-800 bg-dark-100"><h2 class="text-sm font-bold text-white"><i class="fas fa-tint text-blue-400 mr-2"></i> Trackers</h2></div>
+                        <div class="p-4 grid grid-cols-2 gap-4 flex-1 items-center">
+                            <!-- Water Icon -->
+                            <div class="flex flex-col items-center">
+                                <div class="relative w-12 h-20 bg-dark-300 border-2 border-gray-600 rounded-b-xl rounded-t flex flex-col justify-end overflow-hidden mb-2">
+                                    <div id="water-fill" class="w-full bg-blue-500/80 transition-all duration-500" style="height: 0%;"></div>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-between py-1">
+                                        <button onclick="addWater(1)" class="text-white hover:text-blue-300 w-full flex justify-center"><i class="fas fa-plus"></i></button>
+                                        <span id="water-text-large" class="text-white font-bold drop-shadow-md text-sm">0</span>
+                                        <button onclick="addWater(-1)" class="text-white hover:text-blue-300 w-full flex justify-center"><i class="fas fa-minus"></i></button>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-gray-500">Hydration (8 max)</span>
+                            </div>
+                            <!-- Supps -->
+                            <div class="space-y-2 text-sm" id="supp-list"></div>
+                        </div>
+                    </div>
+                    <!-- Heatmap -->
+                    <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-bold text-white"><i class="fas fa-fire-alt text-orange-400 mr-1.5"></i> Heatmap</h2>
+                                <!-- View Selector Tabs -->
+                                <div class="bg-dark-300 p-0.5 rounded-lg border border-gray-700 flex text-[10px] font-bold">
+                                    <button type="button" id="btn-hm-front" onclick="switchHeatmapView('front')" class="px-2.5 py-1 rounded-md bg-brand-500 text-black shadow font-extrabold transition-all">Front</button>
+                                    <button type="button" id="btn-hm-back" onclick="switchHeatmapView('back')" class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white transition-all">Back</button>
+                                </div>
+                            </div>
+                            <span id="rec-status-badge" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-green-500/20 text-green-400 border border-green-500/30">Optimal</span>
+                        </div>
+                        <div class="p-4 flex flex-col sm:flex-row items-center justify-around gap-4 flex-1">
+                            <div class="relative w-28 h-44 sm:w-32 sm:h-52 flex justify-center shrink-0">
+                                <!-- FRONT VIEW SVG (Realistic Anatomical Silhouette) -->
+                                <svg id="svg-body-front" viewBox="0 0 160 260" class="w-full h-full drop-shadow-[0_0_12px_rgba(250,204,21,0.2)]">
+                                    <g stroke="#0a0a0a" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">
+                                        <!-- Head & Neck -->
+                                        <ellipse cx="80" cy="20" rx="10" ry="13" fill="#2d3748" />
+                                        <path d="M 74 31 L 74 42 Q 80 43 86 42 L 86 31 Z" fill="#2d3748" />
+
+                                        <!-- Traps Front -->
+                                        <path id="rec-traps-f-l" onclick="inspectMuscle('traps')" d="M 74 36 L 63 45 L 67 49 L 74 42 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-traps-f-r" onclick="inspectMuscle('traps')" d="M 86 36 L 97 45 L 93 49 L 86 42 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Shoulders / Delts Front -->
+                                        <path id="rec-shoulders-l" onclick="inspectMuscle('shoulders')" d="M 63 45 Q 46 48 45 64 Q 45 74 53 74 Q 60 67 63 53 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-shoulders-r" onclick="inspectMuscle('shoulders')" d="M 97 45 Q 114 48 115 64 Q 115 74 107 74 Q 100 67 97 53 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Upper Chest (Clavicular Head) -->
+                                        <path id="rec-chest-upper-l" onclick="inspectMuscle('chest-upper')" d="M 78 44 L 64 50 Q 56 56 58 64 L 78 63 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-chest-upper-r" onclick="inspectMuscle('chest-upper')" d="M 82 44 L 96 50 Q 104 56 102 64 L 82 63 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Lower / Mid Chest (Sternal Head) -->
+                                        <path id="rec-chest-lower-l" onclick="inspectMuscle('chest-lower')" d="M 78 65 L 58 66 Q 57 83 75 83 L 78 72 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-chest-lower-r" onclick="inspectMuscle('chest-lower')" d="M 82 65 L 102 66 Q 103 83 85 83 L 82 72 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Biceps -->
+                                        <path id="rec-biceps-l" onclick="inspectMuscle('biceps')" d="M 52 74 Q 42 82 44 98 Q 51 101 55 87 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-biceps-r" onclick="inspectMuscle('biceps')" d="M 108 74 Q 118 82 116 98 Q 109 101 105 87 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Forearms Front -->
+                                        <path id="rec-forearms-l" onclick="inspectMuscle('forearms')" d="M 44 100 Q 36 116 38 138 Q 46 138 50 114 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-forearms-r" onclick="inspectMuscle('forearms')" d="M 116 100 Q 124 116 122 138 Q 114 138 110 114 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Upper Abs -->
+                                        <path id="rec-abs-upper" onclick="inspectMuscle('abs-upper')" d="M 71 85 L 89 85 L 88 108 L 72 108 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Lower Abs & Obliques -->
+                                        <path id="rec-abs-lower" onclick="inspectMuscle('abs-lower')" d="M 66 109 L 94 109 L 90 134 Q 80 142 70 134 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Quads (Front Thighs) -->
+                                        <path id="rec-quads-l" onclick="inspectMuscle('quads')" d="M 68 138 Q 50 156 52 194 Q 64 199 75 194 Q 76 156 68 138 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-quads-r" onclick="inspectMuscle('quads')" d="M 92 138 Q 110 156 108 194 Q 96 199 85 194 Q 84 156 92 138 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Calves / Shins Front -->
+                                        <path id="rec-calves-f-l" onclick="inspectMuscle('calves')" d="M 58 198 Q 53 222 61 248 L 69 248 Q 74 222 71 198 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-calves-f-r" onclick="inspectMuscle('calves')" d="M 102 198 Q 107 222 99 248 L 91 248 Q 86 222 89 198 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                    </g>
+                                </svg>
+
+                                <!-- BACK VIEW SVG (Realistic Anatomical Silhouette) -->
+                                <svg id="svg-body-back" viewBox="0 0 160 260" class="w-full h-full drop-shadow-[0_0_12px_rgba(250,204,21,0.2)] hidden-view">
+                                    <g stroke="#0a0a0a" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">
+                                        <!-- Head Back -->
+                                        <ellipse cx="80" cy="20" rx="10" ry="13" fill="#2d3748" />
+
+                                        <!-- Traps / Upper Back (Diamond Kite) -->
+                                        <path id="rec-traps" onclick="inspectMuscle('traps')" d="M 80 34 L 62 46 L 70 74 L 80 78 L 90 74 L 98 46 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Rear Delts -->
+                                        <path id="rec-rear-delts-l" onclick="inspectMuscle('rear-delts')" d="M 60 46 Q 46 52 47 67 Q 55 72 63 64 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-rear-delts-r" onclick="inspectMuscle('rear-delts')" d="M 100 46 Q 114 52 113 67 Q 105 72 97 64 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Lats (Wings) -->
+                                        <path id="rec-lats-l" onclick="inspectMuscle('lats')" d="M 68 74 L 56 77 Q 53 103 69 113 L 73 86 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-lats-r" onclick="inspectMuscle('lats')" d="M 92 74 L 104 77 Q 107 103 91 113 L 87 86 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Triceps -->
+                                        <path id="rec-triceps-l" onclick="inspectMuscle('triceps')" d="M 48 69 Q 39 80 41 98 Q 49 100 53 85 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-triceps-r" onclick="inspectMuscle('triceps')" d="M 112 69 Q 121 80 119 98 Q 111 100 107 85 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Forearms Back -->
+                                        <path id="rec-forearms-b-l" onclick="inspectMuscle('forearms')" d="M 42 100 Q 33 116 35 138 Q 43 138 47 114 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-forearms-b-r" onclick="inspectMuscle('forearms')" d="M 118 100 Q 127 116 125 138 Q 117 138 113 114 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Lower Back (Lumbar) -->
+                                        <path id="rec-lower-back" onclick="inspectMuscle('lower-back')" d="M 72 86 L 88 86 L 87 134 L 73 134 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Glutes -->
+                                        <path id="rec-glutes-l" onclick="inspectMuscle('glutes')" d="M 75 135 Q 53 140 57 166 Q 72 172 76 146 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-glutes-r" onclick="inspectMuscle('glutes')" d="M 85 135 Q 107 140 103 166 Q 88 172 84 146 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Hamstrings -->
+                                        <path id="rec-hamstrings-l" onclick="inspectMuscle('hamstrings')" d="M 58 168 Q 52 188 56 206 Q 67 208 73 184 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-hamstrings-r" onclick="inspectMuscle('hamstrings')" d="M 102 168 Q 108 188 104 206 Q 93 208 87 184 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+
+                                        <!-- Calves Back -->
+                                        <path id="rec-calves-l" onclick="inspectMuscle('calves')" d="M 57 208 Q 49 226 60 250 L 68 250 Q 74 228 71 208 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                        <path id="rec-calves-r" onclick="inspectMuscle('calves')" d="M 103 208 Q 111 226 100 250 L 92 250 Q 86 228 89 208 Z" fill="#22c55e" class="transition-all duration-300 cursor-pointer hover:opacity-80" />
+                                    </g>
+                                </svg>
+                            </div>
+
+                            <!-- Legend & Quick Tip -->
+                            <div class="text-xs text-gray-400 space-y-2.5">
+                                <div class="flex items-center"><div class="w-3 h-3 bg-green-500 rounded-sm mr-2 shadow-[0_0_6px_rgba(34,197,94,0.6)]"></div> Fully Recovered</div>
+                                <div class="flex items-center"><div class="w-3 h-3 bg-yellow-500 rounded-sm mr-2 shadow-[0_0_6px_rgba(234,179,8,0.6)]"></div> Light Fatigue (Caution)</div>
+                                <div class="flex items-center"><div class="w-3 h-3 bg-red-500 rounded-sm mr-2 shadow-[0_0_6px_rgba(239,68,68,0.6)]"></div> Needs Rest (Do Not Train)</div>
+                                <p class="text-[10px] text-gray-400 pt-1 border-t border-gray-800"><i class="fas fa-hand-pointer text-brand-400 mr-1"></i> Tap any body part to inspect readiness.</p>
+                            </div>
+                        </div>
+
+                        <!-- Heatmap Training Readiness Panel (Do Not Train Today / Optimal Today) -->
+                        <div id="hm-readiness-panel" class="px-4 pb-3 space-y-2">
+                            <!-- DO NOT TRAIN TODAY BOX -->
+                            <div id="hm-dont-train-box" class="p-2.5 rounded-xl bg-red-950/30 border border-red-500/40">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-[11px] font-extrabold text-red-400 flex items-center gap-1.5">
+                                        <i class="fas fa-ban text-red-400"></i> 🛑 DO NOT TRAIN TODAY (Needs Rest)
+                                    </span>
+                                    <span id="hm-dont-train-count" class="text-[10px] font-bold px-2 py-0.2 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">0 Parts</span>
+                                </div>
+                                <div id="hm-dont-train-list" class="flex flex-wrap gap-1.5 min-h-[22px]">
+                                    <span class="text-[11px] text-gray-400 italic">None! All muscle groups are recovered.</span>
+                                </div>
+                            </div>
+
+                            <!-- READY TO TRAIN TODAY BOX -->
+                            <div id="hm-ready-train-box" class="p-2.5 rounded-xl bg-green-950/20 border border-green-500/30">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-[11px] font-extrabold text-green-400 flex items-center gap-1.5">
+                                        <i class="fas fa-check-circle text-green-400"></i> 🟢 READY TO TRAIN TODAY (Optimal)
+                                    </span>
+                                    <span id="hm-ready-train-count" class="text-[10px] font-bold px-2 py-0.2 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">16 Parts</span>
+                                </div>
+                                <div id="hm-ready-train-list" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+                                    <!-- Dynamic badges -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-4 py-2.5 border-t border-gray-800 bg-dark-100/50 text-[11px] text-gray-300 flex items-center justify-between">
+                            <span id="rec-message" class="truncate font-medium">All muscle groups fully recovered.</span>
+                            <button type="button" onclick="toggleHeatmapViewFlip()" class="text-[10px] text-brand-400 hover:text-brand-300 ml-2 font-bold shrink-0 flex items-center gap-1"><i class="fas fa-sync-alt"></i> Flip View</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Workout History Shortcut -->
+                <div class="mt-4">
+                    <button onclick="switchAppTab('progress')" class="w-full bg-dark-200 hover:bg-dark-100 border border-gray-800 hover:border-brand-500/40 p-3.5 rounded-2xl flex items-center justify-between text-xs text-gray-300 transition-all shadow-md group">
+                        <span class="flex items-center gap-2.5">
+                            <span class="w-8 h-8 rounded-xl bg-brand-900/30 border border-brand-500/30 flex items-center justify-center text-brand-400 group-hover:scale-110 transition-transform"><i class="fas fa-history"></i></span>
+                            <span class="font-bold text-white text-sm">Workout History Log</span>
+                        </span>
+                        <span class="text-brand-400 font-bold flex items-center gap-1.5" id="dash-history-count">0 Sessions <i class="fas fa-chevron-right text-[10px]"></i></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- WORKOUT TAB -->
+            <div id="tab-workout" class="app-tab hidden-view space-y-6">
+                <div id="dashboard-plan-view" class="space-y-6">
+                    <div id="dev-debug-bar" class="bg-red-900/80 text-white p-3 rounded text-xs font-mono mb-4 break-all"></div>
+                    <div>
+                        <div class="flex justify-between items-end mb-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white flex items-center">
+                                    Today's Workout Plan
+                                    <span id="dash-trainer-badge" class="hidden-view ml-3 text-[10px] bg-brand-900/50 text-brand-400 border border-brand-400/50 px-2 py-1 rounded uppercase tracking-wider"><i class="fas fa-user-shield mr-1"></i> From Coach</span>
+                                </h2>
+                                <p class="text-gray-400 text-sm mt-1">Review your plan for today. Edit if needed.</p>
+                            </div>
+                            <span class="text-xs bg-dark-100 border border-gray-800 text-brand-400 px-3 py-1 rounded-full font-bold" id="dash-exercise-count">0 Exercises</span>
+                        </div>
+                        
+                        <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden shadow-lg mb-4">
+                            <div class="p-0 overflow-x-auto">
+                                <table class="w-full text-left min-w-[300px] text-sm sm:text-base">
+                                    <tbody id="dash-routine-body" class="divide-y divide-gray-800"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4" id="plan-action-buttons">
+                            <button onclick="openEditRoutineModal()" class="sm:flex-1 bg-dark-300 hover:bg-brand-900/30 text-gray-300 border border-gray-600 hover:border-brand-400 py-3 rounded font-bold transition-all">
+                                <i class="fas fa-edit mr-2"></i> Edit Plan
+                            </button>
+                            <button onclick="startWorkout()" id="btn-start-workout" class="sm:flex-1 bg-brand-600 hover:bg-brand-500 text-white py-3 rounded font-bold shadow-[0_0_15px_rgba(250,204,21,0.35)] transition-all">
+                                <i class="fas fa-play mr-2"></i> Start Workout
+                            </button>
+                        </div>
+                    </div>
+
+
+                </div>
+
+                <!-- ACTIVE WORKOUT VIEW -->
+                <div id="dashboard-active-view" class="hidden-view space-y-6">
+                    <div class="flex justify-between items-center bg-dark-200 p-4 rounded-lg border border-brand-500/50 shadow-[0_0_15px_rgba(250,204,21,0.15)]">
+                        <div><h2 class="text-xl font-bold text-brand-400">Workout in Progress</h2><p class="text-sm text-gray-400">Swipe a set left to delete.</p></div>
+                        <div class="text-right">
+                            <div class="text-2xl font-mono font-bold text-white" id="workout-timer">00:00</div>
+                            <button onclick="cancelWorkout()" class="text-xs text-red-400 hover:text-red-300 transition-colors mt-1 block ml-auto font-medium"><i class="fas fa-trash-alt mr-1"></i> Discard</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="copyPreviousSession()" class="w-full bg-dark-100 hover:bg-dark-300 border border-brand-900/50 text-brand-400 py-3 rounded font-bold transition-colors text-sm mb-2"><i class="fas fa-history mr-2"></i> Load Previous Weights</button>
+                    
+                    <div id="active-exercises-list" class="space-y-4"></div>
+                    
+                    <!-- Rest Timer Widget (Sticky Bottom) -->
+                    <div class="sticky bottom-[70px] md:bottom-4 bg-dark-100 border border-brand-900/50 p-4 rounded-lg flex justify-between items-center shadow-[0_-4px_15px_rgba(0,0,0,0.5)] z-20">
+                        <div><p class="text-sm text-gray-400 mb-1">Rest</p><p id="rest-timer-display" class="text-2xl font-mono font-bold text-brand-400">00:00</p></div>
+                        <div class="space-x-1 sm:space-x-2 flex">
+                            <button onclick="addRest(60)" class="bg-dark-300 text-gray-300 border border-gray-600 px-2 sm:px-3 py-2 rounded text-xs sm:text-sm">+60s</button>
+                            <button onclick="addRest(90)" class="bg-dark-300 text-gray-300 border border-gray-600 px-2 sm:px-3 py-2 rounded text-xs sm:text-sm">+90s</button>
+                            <button onclick="stopRest()" class="bg-red-900/30 text-red-400 border border-red-800/50 px-2 sm:px-3 py-2 rounded text-xs sm:text-sm">Stop</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="finishWorkout()" class="w-full bg-green-600 hover:bg-green-500 text-white px-6 py-4 rounded font-bold shadow-[0_0_15px_rgba(34,197,94,0.4)] transition-all">
+                        <i class="fas fa-check-circle mr-2"></i> Finish Workout
+                    </button>
+                </div>
+            </div>
+
+            <!-- LIBRARY TAB -->
+            <div id="tab-library" class="app-tab hidden-view space-y-6">
+                <header class="border-b border-gray-800 pb-4 shrink-0">
+                    <h1 class="text-3xl font-bold text-white mb-4">Exercise <span class="text-brand-400">Library</span></h1>
+                    <div class="relative"><i class="fas fa-search absolute left-3 top-3 text-gray-500"></i><input type="text" id="lib-search" oninput="filterLibrary()" placeholder="Search exercises by name or tag..." class="bg-dark-200 border border-gray-700 rounded-full pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-brand-400 w-full"></div>
+                </header>
+                
+                <div class="flex flex-col md:flex-row gap-6 items-start flex-1 min-h-0 pb-4">
+                    <!-- Sidebar -->
+                    <div class="w-full md:w-56 shrink-0 bg-dark-200 rounded-lg border border-gray-800 overflow-hidden flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible">
+                        <ul id="library-categories" class="flex md:block divide-x md:divide-x-0 md:divide-y divide-gray-800 whitespace-nowrap md:whitespace-normal w-full custom-scrollbar">
+                            <!-- JS injected categories -->
+                        </ul>
+                    </div>
+                    
+                    <!-- Main Content Grid -->
+                    <div class="flex-1 w-full bg-dark-200 border border-gray-800 rounded-2xl overflow-hidden flex flex-col shadow-lg">
+                        <div class="bg-dark-100 p-4 border-b border-gray-800 flex justify-between items-center shrink-0">
+                            <h3 id="library-active-title" class="text-brand-400 font-bold text-lg tracking-widest uppercase">Chest</h3>
+                            <span id="library-active-count" class="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded">0 Exercises</span>
+                        </div>
+                        <div id="library-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[60vh] content-start flex-1 custom-scrollbar">
+                            <!-- JS injected exercises -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIET TAB -->
+            <div id="tab-diet" class="app-tab hidden-view space-y-6">
+                <header class="border-b border-gray-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <h1 class="text-3xl font-bold text-white">Your <span class="text-brand-400">Diet</span></h1>
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <select id="diet-pref-select" onchange="changeDietPreference()" class="bg-dark-300 border border-gray-700 text-white text-sm rounded px-3 py-2 outline-none focus:border-brand-400">
+                            <option value="Non-Veg">Non-Veg</option>
+                            <option value="Veg">Vegetarian</option>
+                        </select>
+                        <button onclick="openMealCalcModal()" class="flex-1 sm:flex-none text-sm bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded font-bold transition-all"><i class="fas fa-calculator mr-2"></i> Custom Meal</button>
+                    </div>
+                </header>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-dark-200 border border-brand-900/50 rounded-2xl p-4 text-center shadow-lg">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Calories</p>
+                        <p class="text-2xl font-bold text-white"><span id="diet-total-cals">0</span></p>
+                    </div>
+                    <div class="bg-dark-200 border border-brand-900/50 rounded-2xl p-4 text-center shadow-lg">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Protein</p>
+                        <p class="text-2xl font-bold text-brand-400"><span id="diet-total-pro">0</span>g</p>
+                    </div>
+                    <div class="bg-dark-200 border border-brand-900/50 rounded-2xl p-4 text-center shadow-lg">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Carbs</p>
+                        <p class="text-2xl font-bold text-orange-400"><span id="diet-total-carb">0</span>g</p>
+                    </div>
+                    <div class="bg-dark-200 border border-brand-900/50 rounded-2xl p-4 text-center shadow-lg">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Fats</p>
+                        <p class="text-2xl font-bold text-yellow-400"><span id="diet-total-fat">0</span>g</p>
+                    </div>
+                </div>
+
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden shadow-lg">
+                    <div class="p-0" id="meal-plan-container"></div>
+                </div>
+            </div>
+
+            <!-- PROGRESS TAB -->
+            <div id="tab-progress" class="app-tab hidden-view space-y-6">
+                <header class="border-b border-gray-800 pb-4"><h1 class="text-3xl font-bold text-white">Your <span class="text-brand-400">Progress</span></h1></header>
+
+                <!-- ACTIVE WEIGHT TARGET & PLAN CARD -->
+                <div id="prog-weight-plan-card" class="bg-dark-200 rounded-2xl border border-brand-500/30 p-4 shadow-lg mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-lg shrink-0">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white">Milestone Projection Plan</h3>
+                                <p class="text-xs text-gray-400" id="prog-plan-sub">Weekly & Monthly Goal Strategy</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-brand-400 bg-brand-900/30 border border-brand-500/30 px-2.5 py-1 rounded-full uppercase" id="prog-goal-badge">Goal Active</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                        <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Target Weight</p>
+                            <p class="text-base font-extrabold text-white" id="prog-target-weight">-- kg</p>
+                        </div>
+                        <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Weekly Target</p>
+                            <p class="text-base font-extrabold text-brand-400" id="prog-weekly-rate">-- kg/wk</p>
+                        </div>
+                        <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Monthly Target</p>
+                            <p class="text-base font-extrabold text-green-400" id="prog-monthly-rate">-- kg/mo</p>
+                        </div>
+                        <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Estimated Time</p>
+                            <p class="text-base font-extrabold text-white" id="prog-timeline">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 shadow-lg"><h2 class="text-lg font-bold text-white mb-4"><i class="fas fa-chart-area text-brand-400 mr-2"></i> Volume History</h2><div class="h-64 w-full relative"><canvas id="volumeChart"></canvas></div></div>
+                
+                <!-- WORKOUT HISTORY LOG -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 shadow-lg mt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center">
+                                <i class="fas fa-history text-brand-400 mr-2"></i> Workout History Log
+                            </h2>
+                            <p class="text-xs text-gray-400">Review your past completed sessions, weights & volume.</p>
+                        </div>
+                        <span id="history-count-badge" class="text-xs bg-dark-100 text-brand-400 border border-brand-500/30 px-2.5 py-1 rounded-full font-bold">0 Sessions</span>
+                    </div>
+                    <div id="workout-history-list" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <!-- BODY METRICS -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 shadow-lg mt-6">
+                    <h2 class="text-lg font-bold text-white mb-4"><i class="fas fa-weight scale-x-[-1] text-brand-400 mr-2"></i> Body Metrics</h2>
+                    <div class="flex gap-4 mb-4">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-400 mb-1">Body Weight (kg)</label>
+                            <input type="number" id="metric-weight" class="w-full bg-dark-300 border border-gray-600 rounded p-2 text-white focus:border-brand-400 focus:outline-none" placeholder="e.g. 75">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-400 mb-1">Body Fat (%)</label>
+                            <input type="number" id="metric-bf" class="w-full bg-dark-300 border border-gray-600 rounded p-2 text-white focus:border-brand-400 focus:outline-none" placeholder="e.g. 15">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="logBodyMetric()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-4 py-2 rounded transition-colors h-10"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar" id="body-metrics-list"></div>
+                </div>
+
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 shadow-lg mt-6">
+                    <h2 class="text-lg font-bold text-white mb-4"><i class="fas fa-brain text-brand-400 mr-2"></i> AI 1-Rep Max & Analysis</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+                        <div class="space-y-4 bg-dark-100 p-4 rounded border border-gray-700 flex flex-col justify-center">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Weight Lifted (kg)</label>
+                                <input type="number" id="rm-weight" class="w-full bg-dark-300 border border-gray-600 rounded p-2 text-white focus:border-brand-400 focus:outline-none" placeholder="e.g. 100">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Reps Completed</label>
+                                <input type="number" id="rm-reps" class="w-full bg-dark-300 border border-gray-600 rounded p-2 text-white focus:border-brand-400 focus:outline-none" placeholder="e.g. 8">
+                            </div>
+                            <button onclick="calculate1RM()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-2 rounded transition-colors shadow-md mt-2">Analyze Set</button>
+                        </div>
+                        <div id="rm-results" class="hidden-view bg-dark-300 p-6 rounded border border-brand-900/50 flex flex-col justify-center h-full">
+                            <p class="text-gray-400 text-sm uppercase tracking-widest mb-1 text-center">Estimated 1RM</p>
+                            <p class="text-5xl font-bold text-white text-center mb-6"><span id="rm-max" class="text-brand-400">0</span> <span class="text-xl">kg</span></p>
+                            
+                            <div class="bg-dark-100 p-3 rounded border border-gray-600">
+                                <p class="text-brand-400 text-xs font-bold uppercase mb-1"><i class="fas fa-lightbulb mr-1"></i> AI Pro Tip</p>
+                                <p class="text-gray-300 text-sm leading-snug" id="rm-tip"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden shadow-lg mt-6">
+                    <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center flex-wrap gap-4">
+                        <h2 class="text-lg font-bold text-white"><i class="fas fa-trophy text-brand-400 mr-2"></i> Personal Records</h2>
+                        <button onclick="openCameraModal()" class="bg-dark-300 hover:bg-brand-900/50 border border-brand-900/50 text-brand-400 px-4 py-2 rounded text-sm font-bold transition-colors"><i class="fas fa-video mr-2"></i> Analyze Form</button>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4" id="pr-list"></div>
+                </div>
+                
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 overflow-hidden shadow-lg mt-6">
+                    <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white"><i class="fas fa-calendar-check text-brand-400 mr-2"></i> Attendance</h2>
+                        <div class="flex items-center gap-2 text-sm text-gray-400">
+                            <button onclick="changeMonth(-1)" class="hover:text-white"><i class="fas fa-chevron-left"></i></button>
+                            <span id="calendar-month-year" class="font-bold text-white min-w-[100px] text-center">Month Year</span>
+                            <button onclick="changeMonth(1)" class="hover:text-white"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2 font-bold">
+                            <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                        </div>
+                        <div id="attendance-calendar" class="grid grid-cols-7 gap-1 text-center">
+                            <!-- JS injected days -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BEFORE / AFTER TRANSFORMATION GALLERY & COMPARISON SLIDER -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-4 sm:p-6 shadow-lg mt-6">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center">
+                                <i class="fas fa-columns text-brand-400 mr-2"></i> Transformation Gallery
+                            </h2>
+                            <p class="text-xs text-gray-400">Drag the interactive slider to compare your before & after physique transformation.</p>
+                        </div>
+                        <button onclick="openPhotoUploadModal()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow">
+                            <i class="fas fa-camera"></i> Update Photos
+                        </button>
+                    </div>
+
+                    <!-- Interactive Comparison Container -->
+                    <div class="relative w-full aspect-[4/5] sm:aspect-video max-h-[440px] rounded-2xl overflow-hidden border border-gray-700 bg-black select-none" id="trans-slider-box">
+                        <!-- "After" Image (Background) -->
+                        <img id="trans-after-img" src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&auto=format&fit=crop&q=80" class="absolute inset-0 w-full h-full object-cover">
+                        <span class="absolute top-3 right-3 bg-brand-500 text-black font-extrabold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider shadow z-10">After (Current)</span>
+
+                        <!-- "Before" Image (Clipped Foreground) -->
+                        <div id="trans-before-container" class="absolute inset-0 overflow-hidden" style="width: 50%;">
+                            <img id="trans-before-img" src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&auto=format&fit=crop&q=80" class="absolute inset-0 w-full h-full object-cover max-w-none" style="width: 100%; height: 100%;">
+                            <span class="absolute top-3 left-3 bg-black/80 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider border border-gray-700 z-10">Before (Day 1)</span>
+                        </div>
+
+                        <!-- Draggable Divider Line & Handle -->
+                        <div id="trans-slider-handle" class="absolute top-0 bottom-0 w-0.5 bg-white cursor-ew-resize flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.8)] z-20 pointer-events-none" style="left: 50%;">
+                            <div class="w-8 h-8 rounded-full bg-brand-400 text-black border-2 border-white flex items-center justify-center shadow-lg">
+                                <i class="fas fa-arrows-alt-h text-xs"></i>
+                            </div>
+                        </div>
+
+                        <!-- Range Slider overlay for smooth drag / touch -->
+                        <input type="range" min="0" max="100" value="50" id="trans-range-input" oninput="updateTransformationSlider(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30">
+                    </div>
+
+                    <!-- Transformation Metrics Summary -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                        <div class="bg-dark-100 p-3 rounded-xl border border-gray-800 text-center">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold">Starting Weight</p>
+                            <p class="text-base font-extrabold text-white" id="trans-start-weight">84 kg</p>
+                        </div>
+                        <div class="bg-dark-100 p-3 rounded-xl border border-gray-800 text-center">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold">Current Weight</p>
+                            <p class="text-base font-extrabold text-brand-400" id="trans-curr-weight">76 kg</p>
+                        </div>
+                        <div class="bg-dark-100 p-3 rounded-xl border border-gray-800 text-center">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold">Waist Delta</p>
+                            <p class="text-base font-extrabold text-green-400" id="trans-waist-delta">-3.5 in</p>
+                        </div>
+                        <div class="bg-dark-100 p-3 rounded-xl border border-gray-800 text-center">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold">Days in Gym</p>
+                            <p class="text-base font-extrabold text-purple-400" id="trans-journey-days">45 Days</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-2xl w-full max-w-sm p-6 border border-gray-700 neon-shadow">
+            <h3 class="text-xl font-bold text-white mb-6 border-b border-gray-800 pb-2">Settings</h3>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-gray-300 text-sm font-semibold mb-2">Workout Routine Timing</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="updateWorkoutTimingFromSettings('morning')" id="settings-timing-morning" class="py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-brand-400 bg-brand-900/30 text-white">
+                            <span>🌅</span> Morning
+                        </button>
+                        <button type="button" onclick="updateWorkoutTimingFromSettings('evening')" id="settings-timing-evening" class="py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-gray-700 bg-dark-100 text-gray-400 hover:border-gray-500">
+                            <span>🌙</span> Evening
+                        </button>
+                    </div>
+                </div>
+                <label class="flex items-center justify-between cursor-pointer">
+                    <span class="text-gray-300">True Black Mode (OLED)</span>
+                    <input type="checkbox" id="toggle-oled" onchange="toggleTrueBlack()" class="form-checkbox text-brand-500 rounded h-5 w-5 bg-dark-100 border-gray-600">
+                </label>
+                <button onclick="exportData()" class="w-full bg-dark-100 hover:bg-dark-300 border border-brand-900/50 text-brand-400 py-3 rounded font-bold transition-colors">
+                    <i class="fas fa-download mr-2"></i> Export Data (JSON)
+                </button>
+                <button onclick="openAdminPortal(); closeSettings();" class="block w-full text-center bg-brand-900/20 hover:bg-brand-900/50 border border-brand-400 text-brand-400 py-3 rounded font-bold transition-colors mt-4">
+                    <i class="fas fa-user-shield mr-2"></i> Trainer Admin Panel
+                </button>
+            </div>
+            <button onclick="closeSettings()" class="w-full mt-6 bg-gray-800 text-white py-3 rounded font-bold">Close</button>
+        </div>
+    </div>
+    
+    <!-- WORKOUT SUMMARY MODAL -->
+    <div id="summary-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-2xl w-full max-w-sm p-6 border border-gray-700 neon-shadow text-center">
+            <i class="fas fa-medal text-5xl text-brand-400 mb-4 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"></i>
+            <h3 class="text-2xl font-bold text-white mb-1">Workout Complete!</h3>
+            <p class="text-gray-400 text-sm mb-6">Great job crushing your session.</p>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-dark-100 p-4 rounded-lg border border-gray-800">
+                    <p class="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Volume</p>
+                    <p class="text-xl font-bold text-white"><span id="summary-volume">0</span> <span class="text-sm font-normal text-gray-500">kg</span></p>
+                </div>
+                <div class="bg-dark-100 p-4 rounded-lg border border-gray-800">
+                    <p class="text-gray-400 text-xs uppercase tracking-wider mb-1">Duration</p>
+                    <p class="text-xl font-bold text-white" id="summary-time">00:00</p>
+                </div>
+            </div>
+            
+            <div class="bg-dark-300 p-4 rounded-lg border border-brand-900/50 mb-6 text-left flex items-center">
+                <div class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center mr-4 shrink-0"><i class="fas fa-fire-alt text-orange-500 text-xl"></i></div>
+                <div>
+                    <p class="text-white font-bold" id="summary-intensity">Intense Session</p>
+                    <p class="text-gray-400 text-xs leading-tight" id="summary-intensity-desc">You maintained a fast pace and high volume.</p>
+                </div>
+            </div>
+
+            <button onclick="openStoryCardModal()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold py-3 rounded-2xl transition-all shadow-[0_0_20px_rgba(250,204,21,0.4)] flex items-center justify-center gap-2 mb-2.5">
+                <i class="fab fa-instagram text-lg"></i> Share Instagram / WhatsApp Story
+            </button>
+            <button onclick="closeSummaryModal()" class="w-full bg-dark-100 hover:bg-dark-300 border border-gray-700 text-white font-bold py-3 rounded-2xl transition-all">Return to Dashboard</button>
+        </div>
+    </div>
+    
+    <!-- MEAL CALCULATOR MODAL -->
+    <div id="meal-calc-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-2xl w-full max-w-md p-6 border border-gray-700 neon-shadow flex flex-col h-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white"><i class="fas fa-calculator text-brand-400 mr-2"></i> AI Meal Calculator</h3>
+                <button onclick="closeMealCalcModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <p class="text-gray-400 text-sm mb-4">Type your meal naturally. We support global foods and Indian dishes (e.g. "1 plate chole bhature", "2 bowls butter chicken", "1 sweet lassi", "100g rice").</p>
+            
+            <textarea id="meal-input-text" rows="3" class="w-full bg-dark-300 border border-gray-600 rounded p-3 text-white focus:border-brand-400 focus:outline-none mb-4" placeholder="e.g. 1 plate chole bhature, 1 sweet lassi, 100g chicken..."></textarea>
+            <button onclick="calculateCustomMeal()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-2xl transition-all shadow-[0_0_15px_rgba(250,204,21,0.25)] mb-6">Analyze Meal</button>
+            
+            <div id="meal-calc-results" class="hidden-view bg-dark-100 p-4 rounded-2xl border border-brand-900/50">
+                <h4 class="text-white font-bold mb-3 border-b border-gray-700 pb-2">Estimated Macros</h4>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    <div><p class="text-gray-400 text-xs uppercase mb-1">Cals</p><p class="text-lg font-bold text-brand-400" id="calc-cals">0</p></div>
+                    <div><p class="text-gray-400 text-xs uppercase mb-1">Pro</p><p class="text-lg font-bold text-white"><span id="calc-pro">0</span>g</p></div>
+                    <div><p class="text-gray-400 text-xs uppercase mb-1">Carbs</p><p class="text-lg font-bold text-white"><span id="calc-carb">0</span>g</p></div>
+                    <div><p class="text-gray-400 text-xs uppercase mb-1">Fats</p><p class="text-lg font-bold text-white"><span id="calc-fat">0</span>g</p></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-500 mb-4" id="calc-breakdown">
+                </div>
+                <button onclick="addCalculatedMealToPlan()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-xl transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)]"><i class="fas fa-plus mr-2"></i> Add to My Plan</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CAMERA & PLATE MODALS (same as previous) -->
+    <!-- TRAINER NOTIFICATION MODAL -->
+    <div id="trainer-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-2xl w-full max-w-sm p-6 border border-brand-400 neon-shadow text-center">
+            <div class="w-16 h-16 bg-brand-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-400/50">
+                <i class="fas fa-user-shield text-brand-400 text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-2">Plan Updated!</h3>
+            <p class="text-gray-400 text-sm mb-4">Your Gym Trainer has sent you a new custom Workout Split and Diet Plan.</p>
+            <div class="bg-dark-100 p-4 rounded text-left border border-gray-700 mb-6">
+                <p class="text-xs text-brand-400 uppercase font-bold mb-1"><i class="fas fa-quote-left mr-1"></i> Trainer's Note</p>
+                <p id="trainer-msg-text" class="text-white text-sm italic">"Stick to this plan for 4 weeks. Let's go!"</p>
+            </div>
+            <button onclick="closeTrainerModal()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-2xl transition-all shadow-[0_0_15px_rgba(250,204,21,0.25)]">Got it, Coach!</button>
+        </div>
+    </div>
+    
+    <!-- VIDEO DEMO MODAL -->
+    <div id="video-modal" class="fixed inset-0 bg-black/80 z-[60] hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-3xl flex flex-col neon-shadow overflow-hidden">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100">
+                <h3 class="text-lg font-bold text-white" id="video-modal-title">Exercise Demo</h3>
+                <button onclick="closeVideoModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="w-full aspect-video bg-black" id="video-modal-frame"></div>
+        </div>
+    </div>
+    
+    <!-- CAMERA / FORM ANALYZER MODAL -->
+    <div id="camera-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex flex-col p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col neon-shadow m-auto overflow-hidden relative">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 z-20 shadow-lg"><h3 class="text-lg font-bold text-white"><i class="fas fa-video text-brand-400 mr-2"></i> Analyze Form</h3><button onclick="closeCameraModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button></div>
+            <div class="relative bg-black flex-1 flex flex-col items-center justify-center overflow-hidden w-full">
+                <video id="video-preview" autoplay muted class="absolute inset-0 w-full h-full object-cover sm:object-contain"></video>
+                <video id="video-playback" class="absolute inset-0 w-full h-full object-cover sm:object-contain hidden-view" loop></video>
+                <div id="grid-overlay" class="absolute inset-0 pointer-events-none hidden-view z-10" style="background-image: linear-gradient(to right, rgba(250,204,21,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(250,204,21,0.2) 1px, transparent 1px); background-size: 50px 50px;"><div class="w-[2px] h-full bg-brand-400 absolute left-1/2 transform -translate-x-1/2"></div><div class="h-[2px] w-full bg-brand-400 absolute top-1/2 transform -translate-y-1/2 opacity-50"></div></div>
+                <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-dark-100/90 backdrop-blur border border-gray-700 p-2 sm:p-3 rounded-full flex gap-3 sm:gap-4 items-center z-20">
+                    <button id="btn-record" onclick="toggleRecording()" class="w-12 h-12 bg-red-600 rounded-full border-2 border-white hover:bg-red-500"></button>
+                    <button id="btn-retake" onclick="resetCamera()" class="hidden-view text-gray-300 w-10 h-10 items-center justify-center bg-dark-300 rounded-full"><i class="fas fa-undo"></i></button>
+                    <div class="h-8 w-px bg-gray-600 mx-1"></div>
+                    <button id="btn-play" onclick="togglePlay()" class="text-white w-10 h-10 hidden-view items-center justify-center bg-dark-300 rounded-full"><i class="fas fa-play"></i></button>
+                    <button id="btn-slowmo" onclick="toggleSlowMo()" class="text-white px-3 py-1 text-sm hidden-view items-center justify-center bg-dark-300 rounded-full font-bold">0.5x</button>
+                    <div class="h-8 w-px bg-gray-600 mx-1"></div>
+                    <button onclick="toggleGrid()" class="text-white w-10 h-10 flex items-center justify-center bg-dark-300 rounded-full" id="btn-grid"><i class="fas fa-border-all"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="plate-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-md flex flex-col neon-shadow"><div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 rounded-t-xl"><h3 class="text-lg font-bold text-white">Plates</h3><button onclick="closePlateModal()" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-6 text-center"><h2 class="text-4xl font-bold text-brand-400 mb-6" id="plate-target-weight">0</h2><div class="relative h-20 w-full flex items-center justify-center mb-6"><div class="absolute w-full h-4 bg-gray-600 rounded drop-shadow"></div><div class="absolute right-1/2 left-0 flex items-center justify-end gap-[1px] pr-4" id="plate-visual-left"></div><div class="absolute left-1/2 right-0 flex items-center justify-start gap-[1px] pl-4" id="plate-visual-right"></div></div><div id="plate-list" class="mt-4 flex flex-wrap justify-center gap-2"></div><p id="plate-error" class="text-red-400 text-sm mt-4 hidden-view"></p></div></div></div>
+    <div id="swap-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col neon-shadow"><div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 rounded-t-xl"><h3 class="text-lg font-bold text-white">Swap Exercise</h3><button onclick="closeSwapModal()" class="text-gray-400"><i class="fas fa-times text-xl"></i></button></div><div class="p-4 border-b border-gray-800 flex gap-2 overflow-x-auto custom-scrollbar" id="swap-categories"></div><div class="p-4 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-3" id="swap-list"></div></div></div>
+
+    <!-- CUSTOM ROUTINE BUILDER MODALS -->
+    <div id="edit-routine-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex flex-col p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col neon-shadow m-auto">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 rounded-t-xl">
+                <h3 class="text-lg font-bold text-white"><i class="fas fa-edit text-brand-400 mr-2"></i> Edit Routine</h3>
+                <button onclick="closeEditRoutineModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="p-4 flex-1 overflow-y-auto bg-dark-300 space-y-3" id="edit-routine-list">
+                <!-- JS injects exercises here -->
+            </div>
+            
+            <div class="p-4 border-t border-gray-800 bg-dark-100 space-y-3">
+                <button onclick="openAddExerciseModal()" class="w-full bg-dark-300 hover:bg-brand-900/30 border border-dashed border-gray-600 hover:border-brand-400 text-gray-300 hover:text-brand-400 py-3 rounded font-bold transition-all"><i class="fas fa-plus mr-2"></i> Add Exercise from Library</button>
+                <button onclick="saveCustomRoutine()" class="w-full bg-brand-600 hover:bg-brand-500 text-white py-3 rounded font-bold transition-all shadow-[0_0_15px_rgba(250,204,21,0.35)]">Save Routine</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-exercise-modal" class="fixed inset-0 bg-black/80 z-[60] hidden-view flex flex-col p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 border border-gray-700 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col m-auto shadow-2xl">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 rounded-t-xl">
+                <h3 class="text-lg font-bold text-white">Select Exercise</h3>
+                <button onclick="closeAddExerciseModal()" class="text-gray-400"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-3 border-b border-gray-800 bg-dark-200">
+                <div class="relative"><i class="fas fa-search absolute left-3 top-3 text-gray-500"></i><input type="text" id="add-ex-search" oninput="filterAddExercise()" placeholder="Search 100+ exercises..." class="bg-dark-300 border border-gray-700 rounded-full pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-brand-400 w-full"></div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2" id="add-ex-list">
+                <!-- JS injects list -->
+            </div>
+        </div>
+    </div>
+
+    <!-- IN-APP MESSAGING -->
+    <button onclick="openChatModal()" class="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-14 h-14 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:bg-brand-500 hover:scale-110 transition-all z-40 group">
+        <i class="fas fa-comment-dots text-2xl"></i>
+        <span id="chat-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden-view">New</span>
+    </button>
+    
+    <div id="chat-modal" class="fixed inset-0 bg-black/80 z-[70] hidden-view flex flex-col p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 border border-brand-900/50 rounded-2xl w-full max-w-md max-h-[85vh] h-full flex flex-col neon-shadow m-auto overflow-hidden">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-dark-100 shrink-0">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-brand-900/50 rounded-full flex items-center justify-center mr-3 border border-brand-500/30"><i class="fas fa-user-shield text-brand-400"></i></div>
+                    <div><h3 class="text-sm font-bold text-white" id="client-chat-trainer-title">Your Trainer</h3><p class="text-[10px] text-green-400">Online</p></div>
+                </div>
+                <button onclick="closeChatModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 p-4 overflow-y-auto bg-dark-300 space-y-4 custom-scrollbar" id="chat-messages">
+                <!-- JS populated -->
+            </div>
+            
+            <div class="p-3 border-t border-gray-800 bg-dark-100 flex gap-2 shrink-0">
+                <input type="text" id="chat-input" placeholder="Message your trainer..." class="flex-1 bg-dark-300 border border-gray-700 rounded-full px-4 py-2 text-sm text-white focus:outline-none focus:border-brand-400">
+                <button onclick="sendChatMessage()" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-full flex items-center justify-center transition-colors"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- IN-APP TRAINER & ADMIN PORTAL VIEW -->
+    <div id="admin-portal-modal" class="fixed inset-0 bg-black z-[100] hidden-view flex flex-col">
+        <!-- Top Toolbar -->
+        <div class="bg-dark-200 border-b border-gray-800 px-4 py-2.5 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-brand-400 text-black flex items-center justify-center font-bold text-xs shadow-[0_0_8px_rgba(250,204,21,0.5)]">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs sm:text-sm font-bold text-white leading-tight">Trainer & Admin Portal</h3>
+                    <p class="text-[9px] sm:text-[10px] text-brand-400">Gym Management & Coaching Center</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="admin.html" target="_blank" title="Open full screen in new tab" class="text-xs bg-dark-100 hover:bg-dark-300 border border-gray-700 text-gray-400 hover:text-white px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1">
+                    <i class="fas fa-external-link-alt text-[10px]"></i> <span class="hidden sm:inline">New Tab</span>
+                </a>
+                <button onclick="closeAdminPortal()" class="text-xs bg-brand-400 hover:bg-brand-300 text-black font-extrabold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_8px_rgba(250,204,21,0.3)]">
+                    <i class="fas fa-arrow-left"></i> <span>Member App</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Iframe displaying admin.html -->
+        <iframe id="admin-portal-iframe" src="" class="w-full flex-1 border-0 bg-black"></iframe>
+    </div>
+
+    <!-- INSTAGRAM STORY WORKOUT SUMMARY CARD MODAL -->
+    <div id="story-card-modal" class="fixed inset-0 bg-black/85 z-[80] hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border border-gray-700 shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-3.5 border-b border-gray-800 bg-dark-100 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 text-white flex items-center justify-center text-xs">
+                        <i class="fab fa-instagram"></i>
+                    </span>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">Instagram / WhatsApp Story</h3>
+                </div>
+                <button onclick="closeStoryCardModal()" class="text-gray-400 hover:text-white p-1"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Preview 9:16 Card Container -->
+            <div class="p-4 overflow-y-auto flex-1 flex flex-col items-center custom-scrollbar">
+                <div id="story-card-preview" class="w-full aspect-[9/16] rounded-2xl bg-gradient-to-b from-[#121212] via-[#0a0a0a] to-[#161616] border border-brand-500/40 p-5 flex flex-col justify-between relative shadow-[0_0_30px_rgba(250,204,21,0.15)] overflow-hidden">
+                    <!-- Subtle Glow Accents -->
+                    <div class="absolute -top-12 -right-12 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-brand-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <!-- Top Story Header: Gym Logo & Gym Name -->
+                    <div class="flex items-center justify-between border-b border-gray-800/80 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <img id="story-gym-logo" src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&auto=format&fit=crop&q=60" class="w-9 h-9 rounded-xl object-cover border border-brand-400 shadow">
+                            <div>
+                                <h4 class="text-xs font-black text-white tracking-wide uppercase leading-tight" id="story-gym-name">Iron Forge Fitness</h4>
+                                <p class="text-[9px] text-brand-400 font-bold" id="story-gym-tagline">Elite Training & Strength</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider">Crushed</span>
+                    </div>
+
+                    <!-- Middle Content: Routine Title, Big Volume, Duration, Stats -->
+                    <div class="my-auto py-4 text-center space-y-4">
+                        <div class="inline-block bg-brand-900/30 border border-brand-500/30 px-3 py-1 rounded-full">
+                            <p class="text-[10px] text-brand-300 font-extrabold uppercase tracking-widest" id="story-workout-date">Today • 15 Oct</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold tracking-widest mb-1">Session Cleared</p>
+                            <h2 class="text-2xl font-black text-white tracking-tight uppercase" id="story-workout-title">Chest & Triceps Blast</h2>
+                        </div>
+
+                        <!-- Big Volume Highlight -->
+                        <div class="bg-dark-100/90 border border-gray-800 rounded-2xl p-4 shadow-inner">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">Total Volume Lifted</p>
+                            <p class="text-4xl font-black text-brand-400 tracking-tight" id="story-total-volume">14,250 <span class="text-base font-semibold text-gray-300">kg</span></p>
+                        </div>
+
+                        <!-- 2-column metrics -->
+                        <div class="grid grid-cols-2 gap-2 text-left">
+                            <div class="bg-dark-300/60 p-2.5 rounded-xl border border-gray-800">
+                                <p class="text-[9px] text-gray-400 uppercase">Workout Time</p>
+                                <p class="text-sm font-extrabold text-white flex items-center gap-1.5 mt-0.5">
+                                    <i class="far fa-clock text-brand-400 text-xs"></i> <span id="story-duration">48 min</span>
+                                </p>
+                            </div>
+                            <div class="bg-dark-300/60 p-2.5 rounded-xl border border-gray-800">
+                                <p class="text-[9px] text-gray-400 uppercase">Sets Completed</p>
+                                <p class="text-sm font-extrabold text-white flex items-center gap-1.5 mt-0.5">
+                                    <i class="fas fa-layer-group text-brand-400 text-xs"></i> <span id="story-sets-reps">18 Sets</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Muscles Trained Tags -->
+                        <div>
+                            <p class="text-[9px] text-gray-400 uppercase tracking-wider font-bold mb-1.5">Muscles Activated</p>
+                            <div class="flex flex-wrap gap-1 justify-center" id="story-muscle-tags">
+                                <span class="text-[9px] bg-dark-100 border border-brand-500/40 text-brand-300 px-2 py-0.5 rounded-md font-bold">Upper Chest</span>
+                                <span class="text-[9px] bg-dark-100 border border-brand-500/40 text-brand-300 px-2 py-0.5 rounded-md font-bold">Mid Chest</span>
+                                <span class="text-[9px] bg-dark-100 border border-brand-500/40 text-brand-300 px-2 py-0.5 rounded-md font-bold">Triceps</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Story Footer -->
+                    <div class="border-t border-gray-800/80 pt-3 flex justify-between items-center text-[10px] text-gray-400">
+                        <span class="font-bold text-gray-300 flex items-center gap-1">
+                            <i class="fas fa-fire text-amber-500"></i> Athlete: <span class="text-white font-extrabold" id="story-member-name">Member</span>
+                        </span>
+                        <span class="text-brand-400 font-extrabold tracking-wider">#GymSolo #NoExcuses</span>
+                    </div>
+                </div>
+
+                <!-- Hidden canvas for high-res 1080x1920 export -->
+                <canvas id="story-canvas" width="1080" height="1920" class="hidden-view"></canvas>
+            </div>
+
+            <!-- Actions Bar -->
+            <div class="p-3 bg-dark-100 border-t border-gray-800 flex gap-2">
+                <button onclick="downloadStoryImage()" class="flex-1 bg-brand-500 hover:bg-brand-400 text-black font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
+                    <i class="fas fa-download"></i> Save Image
+                </button>
+                <button onclick="shareStoryCard()" class="flex-1 bg-green-600 hover:bg-green-500 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-600/20">
+                    <i class="fab fa-whatsapp"></i> Share Story
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FRONT DESK ATTENDANCE & QR CHECK-IN MODAL -->
+    <div id="checkin-modal" class="fixed inset-0 bg-black/85 z-[70] hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-3xl">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-brand-900/50 text-brand-400 border border-brand-500/30 flex items-center justify-center font-bold text-xs">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Gym Front Desk Check-In</h3>
+                        <p class="text-[10px] text-gray-400">Record your attendance & streak</p>
+                    </div>
+                </div>
+                <button onclick="closeCheckInModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto">
+                <!-- Check-in Status Card -->
+                <div id="checkin-today-status-card" class="p-4 rounded-2xl bg-dark-100 border border-gray-800 text-center">
+                    <div id="checkin-status-icon" class="w-12 h-12 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/30 flex items-center justify-center mx-auto mb-2 text-xl">
+                        <i class="fas fa-running"></i>
+                    </div>
+                    <h4 id="checkin-status-headline" class="text-sm font-extrabold text-white">Ready for Today's Workout?</h4>
+                    <p id="checkin-status-sub" class="text-xs text-gray-400 mt-1">Enter the 4-digit Daily Desk PIN displayed on the reception desk.</p>
+                </div>
+
+                <!-- Option: 4-Digit Desk PIN Entry -->
+                <div class="bg-dark-300 p-4 rounded-2xl border border-gray-700/60 space-y-3">
+                    <label class="block text-xs font-bold text-white uppercase tracking-wider text-center">
+                        <i class="fas fa-key text-brand-400 mr-1"></i> Enter Today's Desk PIN
+                    </label>
+                    <div class="flex justify-center">
+                        <input type="number" id="checkin-pin-input" maxlength="4" placeholder="••••" class="bg-dark-100 border border-brand-500/40 text-brand-400 rounded-xl p-3 text-center text-2xl font-mono tracking-[0.5em] w-48 focus:outline-none focus:border-brand-400 shadow-inner">
+                    </div>
+                    <button onclick="submitCheckInPin()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3 rounded-xl text-xs transition-all shadow-md shadow-brand-500/25 flex items-center justify-center gap-1.5">
+                        <i class="fas fa-check-circle"></i> Verify & Check In Now
+                    </button>
+                </div>
+
+                <!-- Monthly Attendance Stats -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                        <p class="text-[9px] text-gray-400 uppercase font-semibold">This Month</p>
+                        <p class="text-base font-extrabold text-brand-400" id="stat-month-checkins">0</p>
+                    </div>
+                    <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                        <p class="text-[9px] text-gray-400 uppercase font-semibold">Streak</p>
+                        <p class="text-base font-extrabold text-orange-400" id="stat-checkin-streak">0d</p>
+                    </div>
+                    <div class="bg-dark-100 p-2.5 rounded-xl border border-gray-800">
+                        <p class="text-[9px] text-gray-400 uppercase font-semibold">Rate</p>
+                        <p class="text-base font-extrabold text-green-400" id="stat-attendance-rate">100%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GYM LEADERBOARD MODAL -->
+    <div id="leaderboard-modal" class="fixed inset-0 bg-black/85 z-[70] hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-md border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-3xl">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-xs">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Gym Leaderboard & Rankings</h3>
+                        <p class="text-[10px] text-gray-400">Monthly Consistency & Strength Hall of Fame</p>
+                    </div>
+                </div>
+                <button onclick="closeLeaderboardModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="grid grid-cols-2 p-2 bg-dark-300 border-b border-gray-800 gap-1 text-xs font-bold">
+                <button id="leaderboard-tab-consistency" onclick="switchLeaderboardTab('consistency')" class="py-2 rounded-xl bg-brand-600 text-white transition-all shadow">
+                    🔥 Consistency (Days)
+                </button>
+                <button id="leaderboard-tab-strength" onclick="switchLeaderboardTab('strength')" class="py-2 rounded-xl text-gray-400 hover:text-white transition-all">
+                    💥 Big-3 Strength PRs
+                </button>
+            </div>
+
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-2" id="leaderboard-list-container">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- BEFORE/AFTER PHOTO UPLOAD MODAL -->
+    <div id="photo-upload-modal" class="fixed inset-0 bg-black/85 z-[70] hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-md border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-3xl">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-brand-900/50 text-brand-400 border border-brand-500/30 flex items-center justify-center font-bold text-xs">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Update Transformation Photos</h3>
+                        <p class="text-[10px] text-gray-400">Save your progress for the split slider</p>
+                    </div>
+                </div>
+                <button onclick="closePhotoUploadModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Before Photo (Day 1 / Starting)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-before-photo-url" placeholder="Paste Image URL..." class="flex-1 bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                        <label class="bg-dark-100 hover:bg-dark-300 border border-gray-700 text-brand-400 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer flex items-center">
+                            <i class="fas fa-upload mr-1"></i> File
+                            <input type="file" accept="image/*" class="hidden" onchange="handlePhotoFileInput(this, 'before')">
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">After Photo (Current / Recent)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-after-photo-url" placeholder="Paste Image URL..." class="flex-1 bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                        <label class="bg-dark-100 hover:bg-dark-300 border border-gray-700 text-brand-400 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer flex items-center">
+                            <i class="fas fa-upload mr-1"></i> File
+                            <input type="file" accept="image/*" class="hidden" onchange="handlePhotoFileInput(this, 'after')">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                        <label class="block text-[11px] text-gray-400 mb-1">Starting Weight (kg)</label>
+                        <input type="number" id="input-trans-start-weight" placeholder="e.g. 84" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-gray-400 mb-1">Current Weight (kg)</label>
+                        <input type="number" id="input-trans-curr-weight" placeholder="e.g. 76" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-gray-400 mb-1">Waist Delta (inches)</label>
+                        <input type="text" id="input-trans-waist-delta" placeholder="e.g. -3.5 in" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-gray-400 mb-1">Days in Gym</label>
+                        <input type="text" id="input-trans-journey-days" placeholder="e.g. 45 Days" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-brand-400">
+                    </div>
+                </div>
+
+                <button onclick="saveTransformationData()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3 rounded-xl text-xs transition-all shadow-lg shadow-brand-500/20">
+                    <i class="fas fa-save mr-1.5"></i> Save Transformation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIGITAL VIP MEMBERSHIP PASS MODAL -->
+    <div id="vip-card-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border border-brand-500/50 shadow-[0_0_30px_rgba(250,204,21,0.25)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-brand-400 animate-pulse"></span>
+                    <h3 class="text-sm font-bold text-white tracking-wider uppercase">Digital Member Pass</h3>
+                </div>
+                <button onclick="closeVipCardModal()" class="text-gray-400 hover:text-white p-1 text-sm"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- VIP Card Preview Area -->
+            <div class="p-6">
+                <div id="vip-card-surface" class="relative rounded-2xl p-5 bg-gradient-to-br from-dark-300 via-dark-100 to-dark-300 border-2 border-brand-400/80 shadow-2xl overflow-hidden">
+                    <div class="absolute -top-12 -right-12 w-36 h-36 bg-brand-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <!-- Card Header -->
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="flex items-center gap-2.5">
+                            <img id="vip-card-gym-logo" src="" class="w-9 h-9 rounded-xl object-cover border border-brand-400 hidden-view">
+                            <div>
+                                <h4 id="vip-card-gym-name" class="text-base font-black text-brand-400 tracking-wider">GymSolo</h4>
+                                <span class="text-[8px] bg-brand-500/20 text-brand-300 border border-brand-500/40 px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">VIP Gold Member</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-crown text-brand-400 text-lg"></i>
+                    </div>
+
+                    <!-- Member Info & Avatar -->
+                    <div class="flex items-center gap-3.5 mb-6">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 text-black flex items-center justify-center font-black text-xl shadow-md border-2 border-brand-300">
+                            <span id="vip-card-initials">GS</span>
+                        </div>
+                        <div>
+                            <h3 id="vip-card-member-name" class="text-lg font-extrabold text-white leading-tight">Athlete</h3>
+                            <p class="text-xs text-brand-300/80 font-mono mt-0.5" id="vip-card-member-id">ID: #GS-8842</p>
+                        </div>
+                    </div>
+
+                    <!-- Validity & Barcode Section -->
+                    <div class="pt-3 border-t border-gray-800 flex items-end justify-between">
+                        <div>
+                            <span class="text-[9px] text-gray-400 uppercase font-bold block">Valid Thru</span>
+                            <span class="text-xs font-mono font-bold text-white" id="vip-card-validity">30 Days Remaining</span>
+                        </div>
+                        <div class="p-1.5 bg-white rounded-lg shadow-sm text-center">
+                            <img id="vip-card-qr-img" src="" class="w-12 h-12 object-contain mx-auto" alt="Member QR">
+                            <span class="text-[7px] text-black font-extrabold block leading-tight font-mono">SCAN IN</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-5">
+                    <button onclick="shareVipPass()" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-brand-500/20 cursor-pointer">
+                        <i class="fab fa-whatsapp"></i> Share Pass
+                    </button>
+                    <button onclick="downloadVipPass()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700 text-white font-bold px-4 py-3 rounded-xl text-xs transition-all cursor-pointer">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- IN-GYM SUPPLEMENT & SHAKE BAR MODAL -->
+    <div id="supplement-bar-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-lg border border-brand-500/40 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-sm font-bold">
+                        <i class="fas fa-cocktail"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Gym Shake & Supplement Bar</h3>
+                        <p class="text-[10px] text-gray-400">Order pre/post workout nutrition directly at front desk</p>
+                    </div>
+                </div>
+                <button onclick="closeSupplementBarModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="flex items-center gap-1.5 p-3 bg-dark-300 border-b border-gray-800 overflow-x-auto shrink-0">
+                <button onclick="filterSupplementCategory('all')" id="supp-tab-all" class="supp-cat-btn text-xs font-bold px-3 py-1.5 rounded-lg bg-brand-600 text-white transition-all whitespace-nowrap cursor-pointer">All Items</button>
+                <button onclick="filterSupplementCategory('shakes')" id="supp-tab-shakes" class="supp-cat-btn text-xs font-bold px-3 py-1.5 rounded-lg text-gray-400 hover:text-white transition-all whitespace-nowrap cursor-pointer">Shakes & Drinks</button>
+                <button onclick="filterSupplementCategory('snacks')" id="supp-tab-snacks" class="supp-cat-btn text-xs font-bold px-3 py-1.5 rounded-lg text-gray-400 hover:text-white transition-all whitespace-nowrap cursor-pointer">Bars & Snacks</button>
+                <button onclick="filterSupplementCategory('gear')" id="supp-tab-gear" class="supp-cat-btn text-xs font-bold px-3 py-1.5 rounded-lg text-gray-400 hover:text-white transition-all whitespace-nowrap cursor-pointer">Gym Gear</button>
+            </div>
+
+            <!-- Product Grid -->
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="supplement-items-container">
+                <!-- JS populated -->
+            </div>
+
+            <!-- Order / Checkout Bar -->
+            <div class="p-4 border-t border-gray-800 bg-dark-100 flex items-center justify-between gap-3 shrink-0">
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase font-bold block">Selected Item</span>
+                    <p class="text-xs font-bold text-white truncate max-w-[180px]" id="supp-selected-title">None selected</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-supp-order-whatsapp" onclick="orderSupplementViaWhatsApp()" class="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-extrabold px-3.5 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md shadow-green-500/20 cursor-pointer">
+                        <i class="fab fa-whatsapp"></i> Order at Desk
+                    </button>
+                    <button id="btn-supp-upi-pay" onclick="openUpiPaymentModal()" class="bg-brand-600 hover:bg-brand-500 text-white font-extrabold px-3.5 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md shadow-brand-500/20 cursor-pointer">
+                        <i class="fas fa-qrcode"></i> Pay UPI
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIRAL MILESTONE CERTIFICATES MODAL -->
+    <div id="milestone-certificates-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-lg border border-purple-500/40 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-sm font-bold">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Your Milestone Certificates</h3>
+                        <p class="text-[10px] text-gray-400">Share your achievements on Instagram Stories & WhatsApp</p>
+                    </div>
+                </div>
+                <button onclick="closeCertificatesModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <!-- Certificate Selector Pills -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="selectCertificateType('streak')" id="cert-btn-streak" class="cert-tab-btn active p-2.5 rounded-xl border border-brand-500/50 bg-brand-900/30 text-white text-xs font-bold text-center transition-all cursor-pointer">🔥 Consistency</button>
+                    <button onclick="selectCertificateType('pr')" id="cert-btn-pr" class="cert-tab-btn p-2.5 rounded-xl border border-gray-700 bg-dark-100 text-gray-400 hover:text-white text-xs font-bold text-center transition-all cursor-pointer">🏋️ Century PR</button>
+                    <button onclick="selectCertificateType('goal')" id="cert-btn-goal" class="cert-tab-btn p-2.5 rounded-xl border border-gray-700 bg-dark-100 text-gray-400 hover:text-white text-xs font-bold text-center transition-all cursor-pointer">🎯 Target Master</button>
+                </div>
+
+                <!-- Live Certificate Preview Container -->
+                <div id="certificate-canvas-container" class="relative rounded-2xl p-6 bg-gradient-to-b from-dark-300 via-dark-200 to-dark-300 border-4 border-yellow-500/60 shadow-2xl text-center overflow-hidden">
+                    <div class="absolute top-2 left-2 text-yellow-500/40 text-sm"><i class="fas fa-certificate"></i></div>
+                    <div class="absolute top-2 right-2 text-yellow-500/40 text-sm"><i class="fas fa-certificate"></i></div>
+                    <div class="absolute bottom-2 left-2 text-yellow-500/40 text-sm"><i class="fas fa-certificate"></i></div>
+                    <div class="absolute bottom-2 right-2 text-yellow-500/40 text-sm"><i class="fas fa-certificate"></i></div>
+
+                    <p class="text-[9px] uppercase tracking-[0.25em] text-yellow-400 font-extrabold mb-1">Official Elite Certificate</p>
+                    <h2 class="text-base font-black text-white uppercase tracking-wider" id="cert-gym-title">GymSolo Fitness Club</h2>
+                    <p class="text-[10px] text-gray-400 italic mb-4">Certified Recognition of Relentless Athletic Discipline</p>
+
+                    <p class="text-xs text-gray-300">Proudly Presented To</p>
+                    <h3 class="text-xl font-black text-brand-400 tracking-wide my-1" id="cert-member-name">Alex Cooper</h3>
+
+                    <div class="my-4 py-2 border-y border-yellow-500/30">
+                        <h4 class="text-sm font-extrabold text-white" id="cert-achievement-title">30-Day Relentless Consistency Master</h4>
+                        <p class="text-xs text-gray-400 mt-0.5" id="cert-achievement-desc">Completed 30 consecutive gym workouts with zero skipped sessions.</p>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-gray-400 pt-2 px-2">
+                        <div>
+                            <span class="block font-mono text-white font-bold" id="cert-date-text">Oct 2026</span>
+                            <span>Issue Date</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-brand-400 font-bold italic font-serif">Head Coach</span>
+                            <span>Authorized Signature</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="shareCertificateToSocial()" class="flex-1 bg-gradient-to-r from-purple-600 to-brand-500 hover:from-purple-500 hover:to-brand-400 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/20 cursor-pointer">
+                        <i class="fab fa-instagram"></i> Share to Instagram / WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3-DAY FREE VIP TRIAL WALK-IN PASS MODAL -->
+    <div id="walkin-trial-modal" class="fixed inset-0 bg-black/90 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border-2 border-brand-400 shadow-[0_0_30px_rgba(250,204,21,0.3)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-brand-500/20 border border-brand-500/40 text-brand-400 flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                <span class="text-[9px] bg-brand-500/20 text-brand-300 border border-brand-500/40 px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">VIP Front Desk Pass</span>
+                <h3 class="text-xl font-black text-white mt-2">Claim Your 3-Day Free Trial!</h3>
+                <p class="text-xs text-gray-400 mt-1">Experience full workouts, diet targets, and trainer coaching on us.</p>
+            </div>
+
+            <div class="px-6 pb-6 space-y-3.5">
+                <div>
+                    <label class="block text-[11px] text-gray-400 mb-1 font-semibold">Your Full Name</label>
+                    <input type="text" id="trial-input-name" placeholder="e.g. Rahul Sharma" class="w-full bg-dark-300 border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-brand-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-gray-400 mb-1 font-semibold">WhatsApp / Phone Number</label>
+                    <input type="tel" id="trial-input-phone" placeholder="e.g. 9876543210" class="w-full bg-dark-300 border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-brand-400 focus:outline-none font-mono">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-gray-400 mb-1 font-semibold">What is your fitness goal?</label>
+                    <select id="trial-input-goal" class="w-full bg-dark-300 border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-brand-400 focus:outline-none">
+                        <option value="Weight Loss / Fat Cut">Weight Loss / Fat Cut</option>
+                        <option value="Weight Gain / Muscle Building">Weight Gain / Muscle Building</option>
+                        <option value="Strength & Power">Strength & Powerlifting</option>
+                        <option value="General Health">General Fitness & Endurance</option>
+                    </select>
+                </div>
+
+                <button onclick="submitWalkinTrialPass()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3.5 rounded-xl text-xs transition-all shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 mt-2 cursor-pointer">
+                    <span>Activate 3-Day Free Trial</span>
+                    <i class="fas fa-arrow-right text-xs"></i>
+                </button>
+                <button onclick="closeWalkinTrialModal()" class="w-full text-center text-xs text-gray-500 hover:text-white pt-1 cursor-pointer">No thanks, I'm already a member</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GYM RUSH HOURS SCHEDULE MODAL -->
+    <div id="gym-rush-hours-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border border-gray-700 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-clock text-brand-400"></i>
+                    <h3 class="text-sm font-bold text-white">Best Times to Train Today</h3>
+                </div>
+                <button onclick="closeRushScheduleModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 space-y-3">
+                <div class="p-3 rounded-xl bg-dark-100 border border-red-500/30 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-white">6:30 AM – 9:00 AM</p>
+                        <span class="text-[10px] text-red-400">🔴 Peak Morning Rush</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-medium">Cardio & weights busy</span>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-100 border border-green-500/30 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-white">10:30 AM – 4:30 PM</p>
+                        <span class="text-[10px] text-green-400">🟢 Prime Peaceful Hours</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-medium">Zero waiting for racks!</span>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-100 border border-red-500/30 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-white">6:30 PM – 9:30 PM</p>
+                        <span class="text-[10px] text-red-400">🔴 Peak Evening Rush</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-medium">Busiest gym time</span>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-100 border border-green-500/30 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-white">9:30 PM – 11:00 PM</p>
+                        <span class="text-[10px] text-green-400">🟢 Late Night Calm</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-medium">Chill focus sessions</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPI PAYMENT QR MODAL -->
+    <div id="upi-pay-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-sm border border-brand-500/40 shadow-2xl flex flex-col overflow-hidden text-center p-6 animate-in fade-in zoom-in duration-200">
+            <h3 class="text-base font-bold text-white mb-1">Pay Front Desk via UPI</h3>
+            <p class="text-xs text-gray-400 mb-4" id="upi-pay-item-desc">Item: Whey Protein Shake</p>
+            <div class="p-4 bg-white rounded-2xl inline-block mx-auto shadow-xl border-2 border-brand-400 mb-3">
+                <img id="upi-pay-qr-img" src="" class="w-44 h-44 object-contain mx-auto" alt="UPI QR">
+                <p class="text-black font-mono font-bold text-xs mt-1" id="upi-id-display">gym@upi</p>
+            </div>
+            <p class="text-xs text-white font-bold mb-4">Amount to Pay: <span class="text-brand-400 text-lg" id="upi-pay-amount">₹80</span></p>
+            <button onclick="closeUpiPaymentModal()" class="w-full bg-dark-100 hover:bg-dark-300 border border-gray-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all">Close</button>
+        </div>
+    </div>
+
+    <script src="firebase-config.js?v=22.0"></script>
+    <script src="app.js?v=22.0"></script>
+</body>
+</html>
