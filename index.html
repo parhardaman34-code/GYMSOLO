@@ -509,29 +509,133 @@
                     </div>
                 </header>
 
-                <!-- GYM BUSINESS QUICK ACTION BUTTONS -->
-                <div class="grid grid-cols-3 gap-2 sm:gap-3">
-                    <button type="button" onclick="openVipCardModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
-                        <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                <!-- DAILY MOTIVATION & MICRO-CHALLENGE WIDGET -->
+                <div class="bg-gradient-to-r from-amber-950/30 via-dark-200 to-dark-100 rounded-2xl border border-brand-500/30 p-4 shadow-lg relative overflow-hidden">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-sm shrink-0 mt-0.5">
+                                <i class="fas fa-quote-left"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs italic text-gray-200 leading-relaxed font-medium" id="daily-quote-text">"We must all suffer one of two things: the pain of discipline or the pain of regret."</p>
+                                <span class="text-[10px] text-brand-400 font-bold block mt-1" id="daily-quote-author">— Jim Rohn</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Today's Micro-Challenge -->
+                    <div class="mt-3 pt-3 border-t border-gray-800/80 flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">🔥 Daily Micro-Challenge (+50 XP)</span>
+                            <span class="text-xs text-gray-300 font-semibold" id="daily-challenge-text">Complete 50 Push-Ups today</span>
+                        </div>
+                        <button type="button" id="btn-daily-challenge" onclick="toggleDailyMicroChallenge()" class="text-[11px] bg-dark-100 hover:bg-dark-300 border border-brand-500/40 text-brand-400 px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                            <i class="far fa-circle" id="icon-daily-challenge"></i> <span id="text-daily-challenge">Mark Done</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GYM BUSINESS & SOCIAL ACTION BUTTONS -->
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" onclick="openVipCardModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
                             <i class="fas fa-id-badge"></i>
                         </div>
-                        <span class="text-xs font-bold text-white block">VIP Pass</span>
-                        <span class="text-[9px] text-gray-400">Digital ID & QR</span>
+                        <span class="text-[11px] font-bold text-white block">VIP Pass</span>
+                        <span class="text-[8px] text-gray-400">Digital ID</span>
                     </button>
-                    <button type="button" onclick="openSupplementBarModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
-                        <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                    <button type="button" onclick="openSupplementBarModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
                             <i class="fas fa-cocktail"></i>
                         </div>
-                        <span class="text-xs font-bold text-white block">Shake Bar</span>
-                        <span class="text-[9px] text-gray-400">Supplements</span>
+                        <span class="text-[11px] font-bold text-white block">Shake Bar</span>
+                        <span class="text-[8px] text-gray-400">Supplements</span>
                     </button>
-                    <button type="button" onclick="openCertificatesModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
-                        <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition-transform">
+                    <button type="button" onclick="openCertificatesModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
                             <i class="fas fa-award"></i>
                         </div>
-                        <span class="text-xs font-bold text-white block">Certificates</span>
-                        <span class="text-[9px] text-gray-400">Viral Status</span>
+                        <span class="text-[11px] font-bold text-white block">Certificates</span>
+                        <span class="text-[8px] text-gray-400">Viral Status</span>
                     </button>
+                    <button type="button" onclick="openReferralModal()" class="bg-gradient-to-br from-dark-200 to-dark-100 hover:from-dark-100 hover:to-dark-300 border border-brand-500/40 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center transition-all shadow-md group cursor-pointer">
+                        <div class="w-8 h-8 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <span class="text-[11px] font-bold text-white block">Refer Friend</span>
+                        <span class="text-[8px] text-green-400 font-bold">+7d Free</span>
+                    </button>
+                </div>
+
+                <!-- ATHLETE SUPERPOWER TOOLS (PHASES 1, 2, 3) -->
+                <div class="bg-dark-200 rounded-2xl border border-gray-800 p-3.5 shadow-lg">
+                    <div class="flex justify-between items-center mb-2.5 px-1">
+                        <span class="text-[11px] font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-dumbbell text-brand-400"></i> Athlete Tools & Growth</span>
+                        <span class="text-[10px] text-brand-400 font-bold cursor-pointer hover:underline" onclick="openBadgesModal()"><i class="fas fa-medal mr-1"></i> Level <span id="dash-athlete-level">1</span> (<span id="dash-athlete-xp">0</span> XP)</span>
+                    </div>
+                    <div class="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                        <!-- 1. Transformation Photos -->
+                        <button type="button" onclick="openPhotoTrackerModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">Photos</span>
+                            <span class="text-[8px] text-gray-400">Before/After</span>
+                        </button>
+
+                        <!-- 2. Measurements -->
+                        <button type="button" onclick="openMeasurementTrackerModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-teal-500/15 text-teal-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-ruler-combined"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">Metrics</span>
+                            <span class="text-[8px] text-gray-400">Inches Log</span>
+                        </button>
+
+                        <!-- 3. Badges & XP -->
+                        <button type="button" onclick="openBadgesModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-medal"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">Badges</span>
+                            <span class="text-[8px] text-gray-400"><span id="unlocked-badges-count">0</span> / 10 Won</span>
+                        </button>
+
+                        <!-- 4. 1RM Calculator -->
+                        <button type="button" onclick="openOneRmCalculatorModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">1RM Calc</span>
+                            <span class="text-[8px] text-gray-400">Strength Tier</span>
+                        </button>
+
+                        <!-- 5. PR Wall -->
+                        <button type="button" onclick="openPrHallOfFameModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-red-500/15 text-red-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">PR Wall</span>
+                            <span class="text-[8px] text-gray-400">Hall of Fame</span>
+                        </button>
+
+                        <!-- 6. Warm-Up & Cooldown -->
+                        <button type="button" onclick="openWarmupCooldownModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-child"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">Warm-Up</span>
+                            <span class="text-[8px] text-gray-400">5-Min Flows</span>
+                        </button>
+
+                        <!-- 7. Studio Class Schedule -->
+                        <button type="button" onclick="openClassScheduleModal()" class="bg-dark-100 hover:bg-dark-300 border border-gray-700/80 hover:border-brand-400 p-2 rounded-xl flex flex-col items-center justify-center text-center transition-all group cursor-pointer">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xs mb-1 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-white block">Classes</span>
+                            <span class="text-[8px] text-gray-400">Book Spot</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- LIVE GYM CROWD / RUSH METER -->
@@ -1981,11 +2085,527 @@
                 <p class="text-black font-mono font-bold text-xs mt-1" id="upi-id-display">gym@upi</p>
             </div>
             <p class="text-xs text-white font-bold mb-4">Amount to Pay: <span class="text-brand-400 text-lg" id="upi-pay-amount">₹80</span></p>
-            <button onclick="closeUpiPaymentModal()" class="w-full bg-dark-100 hover:bg-dark-300 border border-gray-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all">Close</button>
+            <button onclick="closeUpiPaymentModal()" class="w-full bg-dark-100 hover:bg-dark-300 border border-gray-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all cursor-pointer">Close</button>
         </div>
     </div>
 
-    <script src="firebase-config.js?v=22.0"></script>
-    <script src="app.js?v=22.0"></script>
+    <!-- ========================================================================= -->
+    <!-- PHASES 1, 2 & 3 ADVANCED ATHLETE MODALS                                   -->
+    <!-- ========================================================================= -->
+
+    <!-- 1. BODY TRANSFORMATION PHOTO TRACKER & COMPARISON SLIDER -->
+    <div id="photo-tracker-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-camera"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Body Transformation Tracker</h3>
+                        <p class="text-[10px] text-gray-400">Before & After comparison slider and monthly progress gallery</p>
+                    </div>
+                </div>
+                <button onclick="closePhotoTrackerModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <!-- Interactive Before / After Split Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-gray-300 flex items-center gap-1.5"><i class="fas fa-history text-brand-400"></i> Visual Wipe Comparison</span>
+                        <span class="text-[10px] text-gray-400">Drag slider left/right</span>
+                    </div>
+
+                    <div id="slider-comparison-box" class="relative w-full h-72 sm:h-80 rounded-2xl overflow-hidden border border-gray-700 bg-dark-300 select-none">
+                        <!-- Before Image (Base) -->
+                        <img id="comp-img-before" src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&auto=format&fit=crop&q=60" alt="Before" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="absolute top-3 left-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-gray-700 text-left">
+                            <span class="text-[9px] text-gray-400 uppercase font-bold block">BEFORE</span>
+                            <span class="text-[10px] font-bold text-white" id="comp-label-before">Day 1 • 84 kg</span>
+                        </div>
+
+                        <!-- After Image (Clipped Overlay) -->
+                        <div id="comp-after-clip" class="absolute inset-0 overflow-hidden" style="width: 50%;">
+                            <img id="comp-img-after" src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=60" alt="After" class="absolute inset-0 w-full h-full object-cover max-w-none" style="width: 100%; height: 100%;">
+                            <div class="absolute top-3 right-3 bg-brand-950/80 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-brand-400/50 text-right">
+                                <span class="text-[9px] text-brand-300 uppercase font-bold block">AFTER</span>
+                                <span class="text-[10px] font-bold text-white" id="comp-label-after">Today • 78 kg</span>
+                            </div>
+                        </div>
+
+                        <!-- Divider Line -->
+                        <div id="comp-divider" class="absolute top-0 bottom-0 w-0.5 bg-brand-400 shadow-[0_0_10px_#facc15]" style="left: 50%;">
+                            <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-brand-400 text-black flex items-center justify-center text-[10px] font-extrabold shadow-lg">
+                                <i class="fas fa-arrows-alt-h"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="range" min="0" max="100" value="50" class="w-full accent-brand-500 cursor-ew-resize" oninput="setTransformationSlider(this.value)">
+                </div>
+
+                <!-- Add New Progress Photo Section -->
+                <div class="p-3.5 bg-dark-100 rounded-2xl border border-gray-800 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-white flex items-center gap-1.5"><i class="fas fa-plus-circle text-brand-400"></i> Add New Progress Photo</h4>
+                        <span class="text-[9px] text-gray-500">100% Private to you</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="selectPhotoPose('front')" id="pose-btn-front" class="pose-btn p-2 rounded-xl border border-brand-500/50 bg-brand-900/20 text-brand-300 text-xs font-bold text-center">Front Pose</button>
+                        <button type="button" onclick="selectPhotoPose('side')" id="pose-btn-side" class="pose-btn p-2 rounded-xl border border-gray-700 bg-dark-300 text-gray-400 text-xs font-bold text-center">Side View</button>
+                        <button type="button" onclick="selectPhotoPose('back')" id="pose-btn-back" class="pose-btn p-2 rounded-xl border border-gray-700 bg-dark-300 text-gray-400 text-xs font-bold text-center">Back Lat</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1">Body Weight (kg)</label>
+                            <input type="number" step="0.1" id="photo-input-weight" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-white font-mono" placeholder="78.5">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1">Date</label>
+                            <input type="date" id="photo-input-date" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-white text-xs">
+                        </div>
+                    </div>
+
+                    <input type="file" id="photo-file-upload" accept="image/*" class="hidden" onchange="handleProgressPhotoUpload(event)">
+                    <button type="button" onclick="document.getElementById('photo-file-upload').click()" class="w-full bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-upload"></i> Choose Photo / Take Camera Snap
+                    </button>
+                </div>
+
+                <!-- Past Progress Photos Gallery -->
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Progress History</h4>
+                    <div id="progress-photos-gallery" class="grid grid-cols-3 gap-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Share Transformation Card -->
+                <button type="button" onclick="shareTransformationCard()" class="w-full bg-gradient-to-r from-amber-500 to-brand-500 hover:from-amber-400 hover:to-brand-400 text-black font-extrabold py-3 rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fab fa-whatsapp text-sm"></i> Share Before & After to WhatsApp / Instagram
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. BODY MEASUREMENT LOG & TREND CHART -->
+    <div id="measurement-tracker-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-ruler-combined"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Body Measurements & Tape Tracker</h3>
+                        <p class="text-[10px] text-gray-400">Track inches lost and muscle gained over weeks</p>
+                    </div>
+                </div>
+                <button onclick="closeMeasurementTrackerModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <!-- Summary Delta Pills -->
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-dark-100 border border-gray-800 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-gray-400 uppercase font-semibold block">Weight Delta</span>
+                        <span class="text-sm font-black text-brand-400" id="delta-weight">-- kg</span>
+                    </div>
+                    <div class="bg-dark-100 border border-gray-800 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-gray-400 uppercase font-semibold block">Waist Delta</span>
+                        <span class="text-sm font-black text-green-400" id="delta-waist">-- cm</span>
+                    </div>
+                    <div class="bg-dark-100 border border-gray-800 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-gray-400 uppercase font-semibold block">Arms Delta</span>
+                        <span class="text-sm font-black text-blue-400" id="delta-arms">-- cm</span>
+                    </div>
+                </div>
+
+                <!-- Interactive Chart Canvas -->
+                <div class="p-4 bg-dark-100 rounded-2xl border border-gray-800">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-white flex items-center gap-1.5"><i class="fas fa-chart-line text-teal-400"></i> Measurement Progression</span>
+                        <span class="text-[9px] text-gray-400">Weight & Waist over time</span>
+                    </div>
+                    <div class="h-48 w-full">
+                        <canvas id="measurement-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Log New Entry Form -->
+                <div class="p-3.5 bg-dark-100 rounded-2xl border border-gray-800 space-y-2.5">
+                    <h4 class="text-xs font-bold text-white"><i class="fas fa-plus mr-1 text-teal-400"></i> Log Today's Numbers</h4>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Weight (kg)</label>
+                            <input type="number" step="0.1" id="meas-weight" placeholder="78" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Waist (cm)</label>
+                            <input type="number" step="0.5" id="meas-waist" placeholder="82" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Arms / Biceps (cm)</label>
+                            <input type="number" step="0.5" id="meas-arms" placeholder="38" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Chest (cm)</label>
+                            <input type="number" step="0.5" id="meas-chest" placeholder="102" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5">Thighs (cm)</label>
+                            <input type="number" step="0.5" id="meas-thighs" placeholder="58" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                    </div>
+                    <button type="button" onclick="saveNewMeasurementEntry()" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow mt-1 cursor-pointer">
+                        Save Measurement Entry
+                    </button>
+                </div>
+
+                <!-- Measurement History Table -->
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">History Log</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="text-gray-400 border-b border-gray-800 text-[10px] uppercase">
+                                    <th class="py-1.5 px-2">Date</th>
+                                    <th class="py-1.5 px-2">Weight</th>
+                                    <th class="py-1.5 px-2">Waist</th>
+                                    <th class="py-1.5 px-2">Arms</th>
+                                    <th class="py-1.5 px-2">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="measurement-history-tbody" class="divide-y divide-gray-800 font-mono">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. ACHIEVEMENT BADGES & GAMIFICATION MODAL -->
+    <div id="badges-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-medal"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Athlete Badges & Level</h3>
+                        <p class="text-[10px] text-gray-400">Unlock VIP achievement badges and level up your status</p>
+                    </div>
+                </div>
+                <button onclick="closeBadgesModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <!-- Level & XP Hero Card -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-dark-300 via-amber-950/20 to-dark-100 border border-brand-500/40 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <span class="text-[9px] uppercase font-extrabold text-brand-400 tracking-wider">ATHLETE RANK</span>
+                            <h2 class="text-xl font-black text-white" id="badge-level-display">Level 1 Novice</h2>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-brand-500/20 border border-brand-500/40 text-brand-400 flex items-center justify-center text-xl font-black">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                    </div>
+                    <!-- XP Bar -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] text-gray-400">
+                            <span>Experience Progress</span>
+                            <span class="text-brand-300 font-mono font-bold"><span id="badge-current-xp">150</span> / <span id="badge-next-xp">500</span> XP</span>
+                        </div>
+                        <div class="w-full bg-dark-300 rounded-full h-2.5 border border-gray-700 overflow-hidden">
+                            <div id="badge-xp-fill" class="bg-gradient-to-r from-amber-500 to-brand-400 h-full rounded-full transition-all duration-500" style="width: 30%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Badges Grid -->
+                <div>
+                    <div class="flex justify-between items-center mb-2.5">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">All 10 Unlockable Badges</h4>
+                        <span class="text-xs text-brand-400 font-bold"><span id="badge-unlocked-count">0</span> / 10 Unlocked</span>
+                    </div>
+                    <div id="badges-container-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 1RM (ONE-REP MAX) CALCULATOR & STRENGTH STANDARDS -->
+    <div id="onerm-calculator-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-calculator"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">1RM Calculator & Standards</h3>
+                        <p class="text-[10px] text-gray-400">Calculate maximum strength and see where you rank</p>
+                    </div>
+                </div>
+                <button onclick="closeOneRmCalculatorModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <!-- Inputs -->
+                <div class="p-3.5 bg-dark-100 rounded-2xl border border-gray-800 space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1 font-semibold">Weight Lifted (kg)</label>
+                            <input type="number" id="onerm-input-weight" value="80" step="0.5" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2.5 text-sm text-white font-mono font-bold" oninput="calculateOneRm()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1 font-semibold">Reps Completed (1-15)</label>
+                            <input type="number" id="onerm-input-reps" value="6" min="1" max="15" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2.5 text-sm text-white font-mono font-bold" oninput="calculateOneRm()">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-400 mb-1 font-semibold">Exercise Lift</label>
+                        <select id="onerm-input-lift" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white" onchange="calculateOneRm()">
+                            <option value="bench">Barbell Bench Press</option>
+                            <option value="squat">Barbell Back Squat</option>
+                            <option value="deadlift">Deadlift (Conventional/Sumo)</option>
+                            <option value="ohp">Overhead Barbell Press</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 1RM Result Hero -->
+                <div class="p-5 rounded-2xl bg-gradient-to-r from-dark-300 via-orange-950/20 to-dark-100 border border-orange-500/40 text-center space-y-2">
+                    <span class="text-[10px] uppercase font-extrabold text-orange-400 tracking-wider">ESTIMATED ONE-REP MAX</span>
+                    <div class="text-4xl font-black text-white font-mono" id="onerm-result-val">96 kg</div>
+                    <div class="inline-block px-3 py-1 rounded-full text-xs font-bold border border-orange-400/50 bg-orange-500/20 text-orange-300" id="onerm-rank-badge">
+                        💪 Intermediate Lifter
+                    </div>
+                </div>
+
+                <!-- Percentage Rep Table -->
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Repetition Load Breakdown</h4>
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">95% (2 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-95">91 kg</span></div>
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">90% (4 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-90">86 kg</span></div>
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">85% (6 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-85">82 kg</span></div>
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">80% (8 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-80">77 kg</span></div>
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">75% (10 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-75">72 kg</span></div>
+                        <div class="p-2 bg-dark-100 rounded-xl border border-gray-800"><span class="text-[9px] text-gray-400 block">70% (12 Reps)</span><span class="font-bold text-white font-mono" id="rep-load-70">67 kg</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. PERSONAL RECORDS (PR) HALL OF FAME -->
+    <div id="pr-hall-of-fame-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-trophy"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Personal Records Hall of Fame</h3>
+                        <p class="text-[10px] text-gray-400">Your all-time heaviest lifts and milestones</p>
+                    </div>
+                </div>
+                <button onclick="closePrHallOfFameModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+                <div id="pr-hall-cards-container" class="space-y-2.5">
+                    <!-- Populated by JS -->
+                </div>
+
+                <button type="button" onclick="sharePrHallOfFame()" class="w-full bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-400 hover:to-amber-400 text-black font-extrabold py-3 rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fab fa-whatsapp text-sm"></i> Share My PRs to WhatsApp / Instagram
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. GUIDED 5-MIN WARM-UP & COOLDOWN FLOWS -->
+    <div id="warmup-cooldown-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-md border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-child"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Warm-Up & Cooldown Coach</h3>
+                        <p class="text-[10px] text-gray-400">Step-by-step 5-min flows with auto timers</p>
+                    </div>
+                </div>
+                <button onclick="closeWarmupCooldownModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Tab switcher -->
+            <div class="grid grid-cols-2 p-2 bg-dark-300 gap-1 border-b border-gray-800">
+                <button type="button" onclick="switchMobilityFlow('warmup')" id="mob-tab-warmup" class="py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600 text-white">🔥 Pre-Workout Warm-Up</button>
+                <button type="button" onclick="switchMobilityFlow('cooldown')" id="mob-tab-cooldown" class="py-2 rounded-xl text-xs font-bold transition-all text-gray-400 hover:text-white">🧘 Post-Workout Cooldown</button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar text-center">
+                <!-- Active Step Card -->
+                <div class="p-6 rounded-2xl bg-gradient-to-b from-dark-100 to-dark-300 border border-emerald-500/40 space-y-3">
+                    <span class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider" id="mob-step-counter">STEP 1 OF 5</span>
+                    <h3 class="text-xl font-black text-white" id="mob-step-title">Arm & Shoulder Dislocators</h3>
+                    <p class="text-xs text-gray-400 max-w-xs mx-auto" id="mob-step-desc">Rotate arms in big smooth circles forwards and backwards to lubricate shoulder rotator cuffs.</p>
+
+                    <div class="py-2">
+                        <span class="text-5xl font-black font-mono text-emerald-400" id="mob-timer-display">45</span>
+                        <span class="text-xs text-gray-400 block mt-1">Seconds</span>
+                    </div>
+
+                    <!-- Flow Control Buttons -->
+                    <div class="flex gap-2 justify-center pt-2">
+                        <button type="button" onclick="toggleMobilityTimer()" id="btn-mob-play" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-colors shadow">
+                            <i class="fas fa-play mr-1"></i> Start
+                        </button>
+                        <button type="button" onclick="nextMobilityStep()" class="bg-dark-100 hover:bg-dark-300 text-white border border-gray-700 px-4 py-2.5 rounded-xl text-xs transition-colors">
+                            Next Step <i class="fas fa-step-forward ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Exercise List in this Flow -->
+                <div class="text-left space-y-1.5" id="mob-routine-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. STUDIO GROUP CLASS SCHEDULE & BOOKING -->
+    <div id="class-schedule-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-lg border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-calendar-alt"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Studio Group Class Schedule</h3>
+                        <p class="text-[10px] text-gray-400">Reserve your spot in high-energy coach-led sessions</p>
+                    </div>
+                </div>
+                <button onclick="closeClassScheduleModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Day selector pills -->
+            <div class="flex overflow-x-auto gap-1.5 p-3 bg-dark-300 border-b border-gray-800 custom-scrollbar shrink-0" id="class-day-pills">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="classes-list-container">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. REFER A FRIEND VIRAL PROGRAM -->
+    <div id="referral-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-md border border-brand-500/40 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-gift"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Invite Friends & Earn Free Days</h3>
+                        <p class="text-[10px] text-gray-400">Get 7 days membership extension for every friend who joins</p>
+                    </div>
+                </div>
+                <button onclick="closeReferralModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 text-center space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-500 to-brand-400 text-black flex items-center justify-center text-2xl mx-auto shadow-lg shadow-brand-500/20">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+
+                <div>
+                    <span class="text-[10px] bg-brand-500/20 text-brand-300 border border-brand-500/40 px-3 py-1 rounded-full font-bold uppercase tracking-wider inline-block mb-1">UNLIMITED REWARD PASS</span>
+                    <h2 class="text-xl font-black text-white">GIVE 3 DAYS, GET 7 DAYS</h2>
+                    <p class="text-xs text-gray-300 mt-1 max-w-xs mx-auto">Your friend gets an instant 3-Day Free VIP Trial Pass. When they become a member, you get 7 Days added to your plan free!</p>
+                </div>
+
+                <!-- Referral Link Box -->
+                <div class="p-3 bg-dark-100 rounded-2xl border border-gray-700 space-y-2 text-left">
+                    <label class="block text-[10px] text-gray-400 font-semibold uppercase">Your Personal VIP Invite Link</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="referral-link-input" readonly class="flex-1 bg-dark-300 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono select-all">
+                        <button type="button" onclick="copyReferralLink()" class="bg-brand-600 hover:bg-brand-500 text-white px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button type="button" onclick="shareReferralWhatsApp()" class="w-full bg-green-600 hover:bg-green-500 text-white font-extrabold py-3.5 rounded-xl text-xs transition-colors shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fab fa-whatsapp text-base"></i> Invite via WhatsApp Now
+                </button>
+
+                <div class="p-3 bg-dark-300 rounded-xl border border-gray-800 flex justify-around text-center">
+                    <div>
+                        <span class="text-[9px] text-gray-400 block uppercase">Friends Joined</span>
+                        <span class="text-base font-black text-white" id="referrals-count-display">0</span>
+                    </div>
+                    <div class="border-l border-gray-800 pl-4">
+                        <span class="text-[9px] text-gray-400 block uppercase">Free Days Earned</span>
+                        <span class="text-base font-black text-brand-400" id="referrals-days-display">0 Days</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. EXERCISE FORM TIPS & VIDEO DEMO MODAL -->
+    <div id="exercise-form-guide-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-3 sm:p-4 backdrop-blur-md">
+        <div class="bg-dark-200 rounded-3xl w-full max-w-md border border-gray-700 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-xs font-bold"><i class="fas fa-lightbulb"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Form Coach & Video Demo</h3>
+                        <p class="text-[10px] text-gray-400">Master proper biomechanics and avoid injuries</p>
+                    </div>
+                </div>
+                <button onclick="closeExerciseFormGuideModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar text-left">
+                <!-- Exercise Header -->
+                <div class="p-3.5 bg-dark-100 rounded-2xl border border-brand-500/30">
+                    <span class="text-[10px] uppercase font-bold text-brand-400 tracking-wider block" id="form-guide-category">CHEST • COMPOUND</span>
+                    <h2 class="text-lg font-black text-white mt-0.5" id="form-guide-title">Barbell Bench Press</h2>
+                    <p class="text-xs text-gray-400 mt-1" id="form-guide-muscles">Primary: Pectoralis Major, Anterior Deltoids, Triceps</p>
+                </div>
+
+                <!-- Crucial Coaching Cues -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-check-circle text-green-400"></i> Crucial Coaching Cues</h4>
+                    <div class="space-y-1.5" id="form-guide-cues-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Common Mistakes -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-exclamation-triangle text-red-400"></i> Common Mistakes to Avoid</h4>
+                    <div class="space-y-1.5" id="form-guide-mistakes-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- 1-Click YouTube Form Video Button -->
+                <button type="button" onclick="openExerciseFormOnYoutube()" class="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3.5 rounded-xl text-xs transition-colors shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 cursor-pointer mt-2">
+                    <i class="fab fa-youtube text-lg"></i> Watch Form Video on YouTube
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="firebase-config.js?v=23.0"></script>
+    <script src="app.js?v=23.0"></script>
 </body>
 </html>

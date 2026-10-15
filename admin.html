@@ -92,6 +92,7 @@
             <button onclick="openCrowdControlModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-fire-alt mr-1"></i> Live Crowd</button>
             <button onclick="openBrandingModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-paint-brush mr-1"></i> Gym Branding</button>
             <button onclick="openAnnouncementsModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-bullhorn mr-1"></i> Announcements</button>
+            <button onclick="openClassManagerModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-calendar-alt mr-1"></i> Studio Classes</button>
             <button onclick="openGymQrModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-qrcode mr-1"></i> Check-In QR Desk</button>
             <button onclick="openTrainersModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-users-cog mr-1"></i> Trainers</button>
             <button onclick="returnToClientApp()" class="text-xs bg-dark-200 border border-gray-700 hover:border-brand-400 text-white px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-mobile-alt mr-1"></i> Client App</button>
@@ -1080,8 +1081,87 @@
             </div>
         </div>
     </div>
+
+    <!-- 7. STUDIO GROUP CLASSES MANAGER MODAL -->
+    <div id="class-manager-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-200 rounded-2xl w-full max-w-3xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-xl shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xs"><i class="fas fa-calendar-alt"></i></div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Studio Group Class Schedule Manager</h3>
+                        <p class="text-[10px] text-gray-400">Add, edit, or customize weekly group classes for all gym members</p>
+                    </div>
+                </div>
+                <button onclick="closeClassManagerModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                <!-- Add New Class Form -->
+                <div class="bg-dark-100 p-4 rounded-xl border border-gray-800 space-y-3">
+                    <h4 class="text-xs uppercase font-bold text-indigo-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-plus-circle"></i> Add New Studio Class</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">Day of Week</label>
+                            <select id="class-new-day" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white">
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] text-gray-400 mb-1">Class Name</label>
+                            <input type="text" id="class-new-name" placeholder="e.g. Sunrise Yoga & Spinal Mobility" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">Time Slot</label>
+                            <input type="text" id="class-new-time" placeholder="e.g. 7:00 AM – 7:45 AM" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">Trainer / Instructor</label>
+                            <input type="text" id="class-new-coach" placeholder="e.g. Coach Priya" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">Available Spots</label>
+                            <input type="number" id="class-new-spots" placeholder="6" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-indigo-400">
+                        </div>
+                    </div>
+                    <button onclick="addNewStudioClass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition-colors shadow-sm cursor-pointer"><i class="fas fa-plus mr-1"></i> Add Class to Weekly Schedule</button>
+                </div>
+
+                <!-- Active Classes List -->
+                <div>
+                    <div class="flex justify-between items-center mb-2.5">
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-week"></i> Weekly Schedule (<span id="classes-manager-count">0</span>)</h4>
+                            <select id="classes-filter-day" onchange="renderClassManagerList()" class="bg-dark-300 border border-gray-700 text-gray-300 rounded px-2 py-0.5 text-xs">
+                                <option value="all">All Days</option>
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                            </select>
+                        </div>
+                        <button onclick="resetClassesDefault()" class="text-[11px] text-gray-400 hover:text-white underline"><i class="fas fa-undo mr-1"></i> Reset to Default Schedule</button>
+                    </div>
+                    <div id="classes-manager-container" class="space-y-2">
+                        <!-- JS populated -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <script src="firebase-config.js?v=22.0"></script>
+    <script src="firebase-config.js?v=23.0"></script>
     <script>
         // --- MULTI-TRAINER STATE ---
         const defaultTrainers = [
@@ -3028,7 +3108,10 @@
                                     <i class="fas fa-user"></i>
                                 </span>
                                 <div>
-                                    <h4 class="text-sm font-bold text-white">${lead.name}</h4>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-sm font-bold text-white">${lead.name}</h4>
+                                        ${lead.referredBy ? `<span class="bg-purple-900/40 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-semibold"><i class="fas fa-gift mr-1"></i>Ref: ${lead.referredBy}</span>` : ''}
+                                    </div>
                                     <p class="text-xs text-brand-400 font-medium">${lead.goal || 'General Fitness'}</p>
                                 </div>
                             </div>
@@ -3039,7 +3122,7 @@
                         </div>
 
                         <div class="flex items-center gap-2 w-full sm:w-auto">
-                            <button onclick="followUpLeadWhatsApp('${cleanPhone}', '${lead.name}', '${lead.goal}')" class="flex-1 sm:flex-initial bg-green-600/20 hover:bg-green-600 text-green-300 hover:text-white border border-green-600/40 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                            <button onclick="followUpLeadWhatsApp('${cleanPhone}', '${lead.name}', '${lead.goal}', '${lead.referredBy || ''}')" class="flex-1 sm:flex-initial bg-green-600/20 hover:bg-green-600 text-green-300 hover:text-white border border-green-600/40 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm">
                                 <i class="fab fa-whatsapp text-green-400 text-sm"></i> 1-Click Follow Up
                             </button>
                             <button onclick="deleteWalkinLead('${lead.id}')" class="text-gray-500 hover:text-red-400 p-2 text-xs transition-colors" title="Delete Lead">
@@ -3051,10 +3134,11 @@
             }).join('');
         }
 
-        function followUpLeadWhatsApp(phone, name, goal) {
+        function followUpLeadWhatsApp(phone, name, goal, referredBy) {
             const gymName = gymBranding.gymName || 'Iron Forge Fitness';
             const coachName = currentTrainer ? currentTrainer.name : 'Coach Marcus';
-            const msg = `Hi ${name}! 👋 Welcome to ${gymName}! We saw you activated your 3-Day Free VIP Trial Pass for ${goal || 'fitness'}. Coach ${coachName} is on the gym floor today to give you a tour and guide you through a free workout session. What time are you planning to visit today? Let us know so we can keep your pass ready! 💪🏋️‍♂️`;
+            const refGreeting = referredBy ? ` Your friend invited you with VIP pass code [${referredBy}]!` : '';
+            const msg = `Hi ${name}! 👋 Welcome to ${gymName}!${refGreeting} We saw you activated your 3-Day Free VIP Trial Pass for ${goal || 'fitness'}. Coach ${coachName} is on the gym floor today to give you a tour and guide you through a free workout session. What time are you planning to visit today? Let us know so we can keep your pass ready! 💪🏋️‍♂️`;
 
             if (phone) {
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -3256,6 +3340,149 @@
             closeCrowdControlModal();
         }
 
+        // --- STUDIO GROUP CLASSES SYNC & MANAGER ---
+        const defaultAdminClasses = [
+            { id: 'c_mon_1', day: 'Monday', time: '7:00 AM – 7:45 AM', name: 'Sunrise Yoga & Spinal Mobility', coach: 'Coach Priya', spotsLeft: 4, icon: 'fa-child', color: 'text-indigo-400' },
+            { id: 'c_mon_2', day: 'Monday', time: '6:30 PM – 7:15 PM', name: 'HIIT Fat Furnace Conditioning', coach: 'Coach Marcus', spotsLeft: 2, icon: 'fa-bolt', color: 'text-red-400' },
+            { id: 'c_tue_1', day: 'Tuesday', time: '7:30 AM – 8:15 AM', name: 'CrossFit WOD & Kettlebells', coach: 'Coach Dave', spotsLeft: 5, icon: 'fa-dumbbell', color: 'text-amber-400' },
+            { id: 'c_tue_2', day: 'Tuesday', time: '7:00 PM – 8:00 PM', name: 'Zumba Dance Cardio Blast', coach: 'Coach Ananya', spotsLeft: 3, icon: 'fa-music', color: 'text-pink-400' },
+            { id: 'c_wed_1', day: 'Wednesday', time: '7:00 AM – 7:45 AM', name: 'Deep Fascial Mobility Flow', coach: 'Coach Priya', spotsLeft: 6, icon: 'fa-spa', color: 'text-emerald-400' },
+            { id: 'c_wed_2', day: 'Wednesday', time: '6:30 PM – 7:30 PM', name: 'Powerlifting Heavy Barbell Club', coach: 'Head Coach', spotsLeft: 2, icon: 'fa-weight-hanging', color: 'text-brand-400' },
+            { id: 'c_thu_1', day: 'Thursday', time: '7:30 AM – 8:15 AM', name: 'Spinning & Indoor Cycling', coach: 'Coach Dave', spotsLeft: 4, icon: 'fa-biking', color: 'text-blue-400' },
+            { id: 'c_thu_2', day: 'Thursday', time: '7:00 PM – 8:00 PM', name: 'Zumba Dance Party', coach: 'Coach Ananya', spotsLeft: 5, icon: 'fa-music', color: 'text-pink-400' },
+            { id: 'c_fri_1', day: 'Friday', time: '7:00 AM – 7:45 AM', name: 'Functional Core & Abs Torcher', coach: 'Coach Marcus', spotsLeft: 3, icon: 'fa-fire', color: 'text-orange-400' },
+            { id: 'c_sat_1', day: 'Saturday', time: '8:30 AM – 9:30 AM', name: 'Weekend Warrior BootCamp', coach: 'Head Coach & Team', spotsLeft: 6, icon: 'fa-trophy', color: 'text-yellow-400' },
+            { id: 'c_sun_1', day: 'Sunday', time: '9:00 AM – 10:00 AM', name: 'Active Recovery & Breathwork', coach: 'Coach Priya', spotsLeft: 8, icon: 'fa-leaf', color: 'text-green-400' }
+        ];
+
+        let studioClassesList = [...defaultAdminClasses];
+
+        function initClassesManagerSync() {
+            try {
+                const local = localStorage.getItem('gym_studio_classes');
+                if (local) {
+                    const parsed = JSON.parse(local);
+                    if (Array.isArray(parsed) && parsed.length > 0) studioClassesList = parsed;
+                }
+            } catch(e) {}
+
+            if (typeof db !== 'undefined') {
+                db.collection('gym_settings').doc('studio_classes').onSnapshot(doc => {
+                    if (doc.exists && Array.isArray(doc.data().classes)) {
+                        studioClassesList = doc.data().classes;
+                        localStorage.setItem('gym_studio_classes', JSON.stringify(studioClassesList));
+                        if (!document.getElementById('class-manager-modal').classList.contains('hidden-view')) {
+                            renderClassManagerList();
+                        }
+                    }
+                }, err => console.warn("Classes sync:", err));
+            }
+        }
+
+        function saveStudioClasses() {
+            try {
+                localStorage.setItem('gym_studio_classes', JSON.stringify(studioClassesList));
+            } catch(e) {}
+            if (typeof db !== 'undefined') {
+                db.collection('gym_settings').doc('studio_classes').set({ classes: studioClassesList, updatedAt: Date.now() }).catch(e => console.warn(e));
+            }
+        }
+
+        function openClassManagerModal() {
+            renderClassManagerList();
+            document.getElementById('class-manager-modal').classList.remove('hidden-view');
+        }
+
+        function closeClassManagerModal() {
+            document.getElementById('class-manager-modal').classList.add('hidden-view');
+        }
+
+        function renderClassManagerList() {
+            const container = document.getElementById('classes-manager-container');
+            const countEl = document.getElementById('classes-manager-count');
+            const dayFilter = document.getElementById('classes-filter-day')?.value || 'all';
+
+            if (!container) return;
+            const filtered = (dayFilter === 'all') 
+                ? studioClassesList 
+                : studioClassesList.filter(c => c.day === dayFilter);
+
+            if (countEl) countEl.textContent = studioClassesList.length;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500 italic p-4 text-center">No studio classes scheduled ${dayFilter !== 'all' ? 'for ' + dayFilter : ''}. Add a new class above!</p>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => `
+                <div class="p-3 bg-dark-300 rounded-xl border border-gray-800 flex justify-between items-center gap-3">
+                    <div class="flex items-center gap-3 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-sm shrink-0">
+                            <i class="fas ${item.icon || 'fa-calendar-alt'}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-bold uppercase">${item.day}</span>
+                                <h5 class="text-xs font-bold text-white">${item.name}</h5>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-0.5"><i class="far fa-clock mr-1"></i>${item.time} • Led by ${item.coach} • ${item.spotsLeft} spots</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="deleteStudioClass('${item.id}')" class="text-xs text-red-400 hover:text-red-300 p-1" title="Delete Class"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addNewStudioClass() {
+            const day = document.getElementById('class-new-day').value;
+            const name = document.getElementById('class-new-name').value.trim();
+            const time = document.getElementById('class-new-time').value.trim();
+            const coach = document.getElementById('class-new-coach').value.trim() || 'Trainer';
+            const spots = parseInt(document.getElementById('class-new-spots').value) || 8;
+
+            if (!name || !time) {
+                alert("Please enter the class name and time slot.");
+                return;
+            }
+
+            const newClass = {
+                id: 'c_' + Date.now(),
+                day: day,
+                name: name,
+                time: time,
+                coach: coach,
+                spotsLeft: spots,
+                icon: name.toLowerCase().includes('yoga') ? 'fa-spa' : (name.toLowerCase().includes('spin') ? 'fa-biking' : (name.toLowerCase().includes('zumba') ? 'fa-music' : 'fa-dumbbell')),
+                color: 'text-indigo-400'
+            };
+
+            studioClassesList.push(newClass);
+            saveStudioClasses();
+            document.getElementById('class-new-name').value = '';
+            document.getElementById('class-new-time').value = '';
+            document.getElementById('class-new-coach').value = '';
+            document.getElementById('class-new-spots').value = '';
+            renderClassManagerList();
+            alert(`✅ Added "${name}" to ${day} schedule!`);
+        }
+
+        function deleteStudioClass(classId) {
+            if (!confirm("Are you sure you want to remove this class from the schedule?")) return;
+            studioClassesList = studioClassesList.filter(c => c.id !== classId);
+            saveStudioClasses();
+            renderClassManagerList();
+        }
+
+        function resetClassesDefault() {
+            if (!confirm("Reset weekly schedule back to original default studio classes?")) return;
+            studioClassesList = [...defaultAdminClasses];
+            saveStudioClasses();
+            renderClassManagerList();
+            alert("✅ Reset to default studio class schedule.");
+        }
+
         // --- BOOTSTRAP ---
         document.addEventListener('DOMContentLoaded', () => {
             initTrainersSync();
@@ -3263,6 +3490,7 @@
             initAnnouncementsSync();
             initWalkinLeadsSync();
             initStoreManagerSync();
+            initClassesManagerSync();
             
             // Check session login
             const savedTrainer = sessionStorage.getItem('gymsolo_admin_trainer');

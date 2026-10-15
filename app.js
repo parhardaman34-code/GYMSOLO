@@ -1277,6 +1277,10 @@ function initMainApp(viewDay = null) {
     renderRecoveryHeatmap();
     renderWorkoutHistory();
     renderDashboardWeightGoalCard();
+    initDailyMotivationAndChallenge();
+    renderBadgesUI();
+    initReferralUI();
+    initStudioClassesSync();
     
     const badge = document.getElementById('chat-badge');
     if(badge) {
@@ -2061,7 +2065,7 @@ function renderDashboardWorkout() {
         tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-gray-500">Rest day! Or no exercises assigned.</td></tr>`; 
         return; 
     }
-    appState.todayPlan.forEach((ex, i) => tbody.innerHTML += `<tr><td class="p-3 text-white border-b border-gray-800">${ex.name}</td><td class="p-3 text-center text-gray-400 border-b border-gray-800">${ex.sets}x${ex.reps}</td><td class="p-3 text-right border-b border-gray-800"><button onclick="openSwapModal(${i})" class="text-xs bg-dark-100 text-brand-400 border border-brand-900/50 px-2 py-1 rounded"><i class="fas fa-sync-alt"></i></button></td></tr>`);
+    appState.todayPlan.forEach((ex, i) => tbody.innerHTML += `<tr><td class="p-3 text-white border-b border-gray-800"><div class="flex items-center gap-1.5"><span class="font-bold">${ex.name}</span> <button type="button" onclick="openExerciseFormGuide('${ex.name.replace(/'/g, "\\'")}')" class="text-xs text-brand-400 hover:text-white p-0.5 rounded cursor-pointer" title="Form Tips & Video"><i class="fas fa-info-circle"></i></button></div></td><td class="p-3 text-center text-gray-400 border-b border-gray-800">${ex.sets}x${ex.reps}</td><td class="p-3 text-right border-b border-gray-800"><button onclick="openSwapModal(${i})" class="text-xs bg-dark-100 text-brand-400 border border-brand-900/50 px-2 py-1 rounded cursor-pointer"><i class="fas fa-sync-alt"></i></button></td></tr>`);
 }
 
 let currentSwapIndex = null;
@@ -2621,10 +2625,7 @@ function renderLibrary(category) {
 function filterLibrary() { renderLibrary(); }
 
 function playDemoVideo(exName) {
-    document.getElementById('video-modal-title').textContent = exName + ' Demo';
-    // Fake youtube embed for UI demo
-    document.getElementById('video-modal-frame').innerHTML = `<div class="w-full h-full bg-dark-300 flex items-center justify-center border-4 border-dark-100 rounded-lg"><div class="text-center"><i class="fab fa-youtube text-red-500 text-6xl mb-2 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"></i><p class="text-gray-400 font-bold text-sm">Video Player Placeholder</p></div></div>`;
-    document.getElementById('video-modal').classList.remove('hidden-view');
+    openExerciseFormGuide(exName);
 }
 function closeVideoModal() {
     document.getElementById('video-modal').classList.add('hidden-view');
@@ -4521,11 +4522,23 @@ function submitWalkinTrialPass() {
     if (!name) { alert("Please enter your name."); return; }
     if (!phone || phone.length < 8) { alert("Please enter a valid WhatsApp phone number."); return; }
 
+    let refCode = '';
+    try {
+        const hash = window.location.hash || '';
+        if (hash.includes('ref=')) {
+            refCode = hash.split('ref=')[1].split('&')[0];
+        } else {
+            const urlParams = new URLSearchParams(window.location.search);
+            refCode = urlParams.get('ref') || '';
+        }
+    } catch(e) {}
+
     const leadObj = {
         id: 'lead_' + Date.now(),
         name: name,
         phone: phone,
         goal: goal,
+        referredBy: refCode || null,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         timestamp: Date.now()
     };
@@ -4544,6 +4557,7 @@ function submitWalkinTrialPass() {
     appState.user.name = name;
     appState.user.phone = phone;
     appState.user.goal = goal.includes('Loss') ? 'Weight Loss' : 'Weight Gain';
+    appState.user.referredBy = refCode || null;
     appState.onboarded = true;
     appState.isTrialPass = true;
     appState.membershipDuration = 3;
@@ -4555,3 +4569,1094 @@ function submitWalkinTrialPass() {
     window.location.hash = '';
     initMainApp();
 }
+
+// ============================================================================
+// PHASES 1, 2 & 3: ATHLETE SUPERPOWERS & HIGH-RETENTION ENGINE
+// ============================================================================
+
+// --- 1. DAILY MOTIVATION & MICRO-CHALLENGE ENGINE ---
+const dailyQuotesDB = [
+    { text: "We must all suffer one of two things: the pain of discipline or the pain of regret.", author: "Jim Rohn" },
+    { text: "The last three or four reps is what makes the muscle grow. That area of pain divides the champion from someone else.", author: "Arnold Schwarzenegger" },
+    { text: "Discipline equals freedom. It is the only way to live an exceptional life.", author: "Jocko Willink" },
+    { text: "No man has the right to be an amateur in physical training. It is a shame to grow old without seeing the strength of which your body is capable.", author: "Socrates" },
+    { text: "You don't have to be extreme, just consistent. 1% better every day beats 100% once a month.", author: "James Clear" },
+    { text: "Light weight, baby! Ain't nothin' to it but to do it!", author: "Ronnie Coleman" },
+    { text: "The resistance that you fight physically in the gym can only build a strong character.", author: "Arnold Schwarzenegger" },
+    { text: "Don't count the days, make the days count.", author: "Muhammad Ali" }
+];
+
+const dailyChallengesDB = [
+    "Complete 50 bodyweight push-ups throughout the day",
+    "Drink 1 full glass of water immediately after waking up",
+    "Hold a 2-minute cumulative plank today",
+    "Do 100 bodyweight air squats throughout the day",
+    "No refined sugar or soda today — clean fuel only",
+    "10 minutes of dedicated hamstring & hip mobility stretching",
+    "Hit your daily protein target within 5% accuracy",
+    "Take 8,000 steps today to optimize active recovery"
+];
+
+function initDailyMotivationAndChallenge() {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let hash = 0;
+    for (let i = 0; i < todayIso.length; i++) hash += todayIso.charCodeAt(i);
+
+    const quote = dailyQuotesDB[hash % dailyQuotesDB.length];
+    const challenge = dailyChallengesDB[hash % dailyChallengesDB.length];
+
+    const qText = document.getElementById('daily-quote-text');
+    const qAuthor = document.getElementById('daily-quote-author');
+    const cText = document.getElementById('daily-challenge-text');
+    const cIcon = document.getElementById('icon-daily-challenge');
+    const cBtnText = document.getElementById('text-daily-challenge');
+    const cBtn = document.getElementById('btn-daily-challenge');
+
+    if (qText) qText.textContent = `"${quote.text}"`;
+    if (qAuthor) qAuthor.textContent = `— ${quote.author}`;
+    if (cText) cText.textContent = challenge;
+
+    if (!appState.dailyChallenge) appState.dailyChallenge = {};
+    const isDone = appState.dailyChallenge.date === todayIso && appState.dailyChallenge.completed;
+
+    if (cIcon && cBtnText && cBtn) {
+        if (isDone) {
+            cIcon.className = 'fas fa-check-circle text-green-400';
+            cBtnText.textContent = 'Completed!';
+            cBtn.className = 'text-[11px] bg-green-500/20 text-green-300 border border-green-500/40 px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer';
+        } else {
+            cIcon.className = 'far fa-circle';
+            cBtnText.textContent = 'Mark Done';
+            cBtn.className = 'text-[11px] bg-dark-100 hover:bg-dark-300 border border-brand-500/40 text-brand-400 px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer';
+        }
+    }
+}
+
+function toggleDailyMicroChallenge() {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (!appState.dailyChallenge) appState.dailyChallenge = {};
+
+    const alreadyDone = appState.dailyChallenge.date === todayIso && appState.dailyChallenge.completed;
+    if (alreadyDone) {
+        alert("You've already crushed today's micro-challenge! Rest up for tomorrow.");
+        return;
+    }
+
+    appState.dailyChallenge = { date: todayIso, completed: true };
+    addAthleteXp(50);
+    saveStateToCloud();
+    if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    initDailyMotivationAndChallenge();
+    alert("🔥 Daily Micro-Challenge Complete! +50 XP Earned!");
+}
+
+// --- 2. BODY TRANSFORMATION PHOTO TRACKER & COMPARISON SLIDER ---
+let currentSelectedPose = 'front';
+
+function openPhotoTrackerModal() {
+    const modal = document.getElementById('photo-tracker-modal');
+    if (!modal) return;
+    const wInput = document.getElementById('photo-input-weight');
+    const dInput = document.getElementById('photo-input-date');
+    if (wInput) wInput.value = (appState.user && appState.user.weight) || 75;
+    if (dInput) dInput.value = new Date().toISOString().slice(0, 10);
+
+    renderTransformationPhotosUI();
+    modal.classList.remove('hidden-view');
+}
+
+function closePhotoTrackerModal() {
+    const modal = document.getElementById('photo-tracker-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function setTransformationSlider(val) {
+    const clip = document.getElementById('comp-after-clip');
+    const divider = document.getElementById('comp-divider');
+    if (clip) clip.style.width = `${val}%`;
+    if (divider) divider.style.left = `${val}%`;
+}
+
+function selectPhotoPose(pose) {
+    currentSelectedPose = pose;
+    ['front', 'side', 'back'].forEach(p => {
+        const btn = document.getElementById('pose-btn-' + p);
+        if (btn) {
+            if (p === pose) {
+                btn.className = 'pose-btn p-2 rounded-xl border border-brand-500/50 bg-brand-900/20 text-brand-300 text-xs font-bold text-center';
+            } else {
+                btn.className = 'pose-btn p-2 rounded-xl border border-gray-700 bg-dark-300 text-gray-400 text-xs font-bold text-center';
+            }
+        }
+    });
+}
+
+function handleProgressPhotoUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            // Compress via HTML5 Canvas to keep storage <80kb
+            const maxDim = 800;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+            } else {
+                if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.75);
+
+            if (!Array.isArray(appState.transformationPhotos)) appState.transformationPhotos = [];
+            const weightVal = parseFloat(document.getElementById('photo-input-weight').value) || (appState.user?.weight || 75);
+            const dateVal = document.getElementById('photo-input-date').value || new Date().toISOString().slice(0, 10);
+
+            const newPhoto = {
+                id: 'snap_' + Date.now(),
+                imgData: compressed,
+                weight: weightVal,
+                date: dateVal,
+                pose: currentSelectedPose,
+                timestamp: Date.now()
+            };
+
+            appState.transformationPhotos.unshift(newPhoto);
+            saveStateToCloud();
+            addAthleteXp(100);
+            checkAndAwardBadges();
+            renderTransformationPhotosUI();
+            alert("📸 Progress photo saved securely! Added +100 XP.");
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderTransformationPhotosUI() {
+    const photos = appState.transformationPhotos || [];
+    const gallery = document.getElementById('progress-photos-gallery');
+
+    if (photos.length >= 2) {
+        // Set earliest as Before, latest as After
+        const earliest = photos[photos.length - 1];
+        const latest = photos[0];
+        const beforeImg = document.getElementById('comp-img-before');
+        const afterImg = document.getElementById('comp-img-after');
+        const beforeLbl = document.getElementById('comp-label-before');
+        const afterLbl = document.getElementById('comp-label-after');
+
+        if (beforeImg) beforeImg.src = earliest.imgData;
+        if (afterImg) afterImg.src = latest.imgData;
+        if (beforeLbl) beforeLbl.textContent = `${earliest.date} • ${earliest.weight} kg`;
+        if (afterLbl) afterLbl.textContent = `${latest.date} • ${latest.weight} kg`;
+    } else if (photos.length === 1) {
+        const afterImg = document.getElementById('comp-img-after');
+        const afterLbl = document.getElementById('comp-label-after');
+        if (afterImg) afterImg.src = photos[0].imgData;
+        if (afterLbl) afterLbl.textContent = `${photos[0].date} • ${photos[0].weight} kg`;
+    }
+
+    if (!gallery) return;
+    if (photos.length === 0) {
+        gallery.innerHTML = `<p class="col-span-3 text-xs text-gray-500 italic p-3 text-center bg-dark-100 rounded-xl">No photos logged yet. Take your first snap above!</p>`;
+        return;
+    }
+
+    gallery.innerHTML = photos.map(p => `
+        <div class="relative rounded-xl overflow-hidden border border-gray-700 bg-dark-100 group">
+            <img src="${p.imgData}" class="w-full h-24 object-cover">
+            <div class="p-1.5 text-center bg-dark-200">
+                <span class="text-[9px] font-bold text-white block truncate">${p.weight} kg</span>
+                <span class="text-[8px] text-gray-400 block">${p.date}</span>
+            </div>
+            <button onclick="deleteProgressPhoto('${p.id}')" class="absolute top-1 right-1 bg-red-600/80 text-white rounded p-1 text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('');
+}
+
+function deleteProgressPhoto(id) {
+    if (!confirm("Delete this progress photo?")) return;
+    if (!Array.isArray(appState.transformationPhotos)) return;
+    appState.transformationPhotos = appState.transformationPhotos.filter(p => p.id !== id);
+    saveStateToCloud();
+    renderTransformationPhotosUI();
+}
+
+function shareTransformationCard() {
+    const gymName = clientGymBranding.gymName || 'GymSolo';
+    const photos = appState.transformationPhotos || [];
+    let weightText = "";
+    if (photos.length >= 2) {
+        const earliest = photos[photos.length - 1];
+        const latest = photos[0];
+        const delta = (latest.weight - earliest.weight).toFixed(1);
+        weightText = `Start: ${earliest.weight} kg ➡️ Today: ${latest.weight} kg (${delta > 0 ? '+' : ''}${delta} kg)!`;
+    } else {
+        weightText = "Crushing my transformation goals week by week!";
+    }
+
+    const msg = `🔥 *MY FITNESS TRANSFORMATION*\n\n${weightText}\nGym: ${gymName}\n\nPut in the daily work. Proud member of ${gymName}! 💪🚀`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// --- 3. BODY MEASUREMENT LOG & TREND CHART ENGINE ---
+let measurementChartInstance = null;
+
+function openMeasurementTrackerModal() {
+    const modal = document.getElementById('measurement-tracker-modal');
+    if (!modal) return;
+    const w = document.getElementById('meas-weight');
+    if (w) w.value = (appState.user && appState.user.weight) || 75;
+
+    renderMeasurementHistory();
+    modal.classList.remove('hidden-view');
+    setTimeout(() => renderMeasurementChart(), 100);
+}
+
+function closeMeasurementTrackerModal() {
+    const modal = document.getElementById('measurement-tracker-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function saveNewMeasurementEntry() {
+    const weight = parseFloat(document.getElementById('meas-weight').value) || 0;
+    const waist = parseFloat(document.getElementById('meas-waist').value) || 0;
+    const arms = parseFloat(document.getElementById('meas-arms').value) || 0;
+    const chest = parseFloat(document.getElementById('meas-chest').value) || 0;
+    const thighs = parseFloat(document.getElementById('meas-thighs').value) || 0;
+
+    if (weight <= 0 && waist <= 0) {
+        alert("Please enter at least your weight or waist measurement.");
+        return;
+    }
+
+    if (!Array.isArray(appState.measurements)) appState.measurements = [];
+    const entry = {
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        weight: weight,
+        waist: waist,
+        arms: arms,
+        chest: chest,
+        thighs: thighs,
+        timestamp: Date.now()
+    };
+
+    appState.measurements.push(entry);
+    if (weight > 0 && appState.user) appState.user.weight = weight;
+
+    saveStateToCloud();
+    addAthleteXp(60);
+    renderMeasurementHistory();
+    renderMeasurementChart();
+    alert("✅ Body measurement logged! +60 XP Earned.");
+}
+
+function renderMeasurementHistory() {
+    const entries = appState.measurements || [];
+    const tbody = document.getElementById('measurement-history-tbody');
+
+    // Calculate deltas (earliest vs latest)
+    const dWeight = document.getElementById('delta-weight');
+    const dWaist = document.getElementById('delta-waist');
+    const dArms = document.getElementById('delta-arms');
+
+    if (entries.length >= 2) {
+        const first = entries[0];
+        const last = entries[entries.length - 1];
+        if (dWeight && first.weight && last.weight) {
+            const diff = (last.weight - first.weight).toFixed(1);
+            dWeight.textContent = `${diff > 0 ? '+' : ''}${diff} kg`;
+        }
+        if (dWaist && first.waist && last.waist) {
+            const diff = (last.waist - first.waist).toFixed(1);
+            dWaist.textContent = `${diff > 0 ? '+' : ''}${diff} cm`;
+        }
+        if (dArms && first.arms && last.arms) {
+            const diff = (last.arms - first.arms).toFixed(1);
+            dArms.textContent = `${diff > 0 ? '+' : ''}${diff} cm`;
+        }
+    }
+
+    if (!tbody) return;
+    if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500 italic">No measurements recorded yet.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = entries.slice().reverse().map((m, idx) => `
+        <tr class="hover:bg-dark-100 transition-colors">
+            <td class="py-2 px-2 text-white">${m.date}</td>
+            <td class="py-2 px-2 text-brand-400">${m.weight ? m.weight + ' kg' : '--'}</td>
+            <td class="py-2 px-2 text-green-400">${m.waist ? m.waist + ' cm' : '--'}</td>
+            <td class="py-2 px-2 text-blue-400">${m.arms ? m.arms + ' cm' : '--'}</td>
+            <td class="py-2 px-2"><button onclick="deleteMeasurementEntry(${entries.length - 1 - idx})" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></td>
+        </tr>
+    `).join('');
+}
+
+function deleteMeasurementEntry(index) {
+    if (!confirm("Delete this measurement entry?")) return;
+    if (!Array.isArray(appState.measurements)) return;
+    appState.measurements.splice(index, 1);
+    saveStateToCloud();
+    renderMeasurementHistory();
+    renderMeasurementChart();
+}
+
+function renderMeasurementChart() {
+    const canvas = document.getElementById('measurement-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const entries = appState.measurements || [];
+    if (entries.length === 0) return;
+
+    const labels = entries.map(e => e.date);
+    const weightData = entries.map(e => e.weight || null);
+    const waistData = entries.map(e => e.waist || null);
+
+    if (measurementChartInstance) {
+        measurementChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    measurementChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Weight (kg)',
+                    data: weightData,
+                    borderColor: '#facc15',
+                    backgroundColor: 'rgba(250, 204, 21, 0.1)',
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#facc15'
+                },
+                {
+                    label: 'Waist (cm)',
+                    data: waistData,
+                    borderColor: '#2dd4bf',
+                    backgroundColor: 'transparent',
+                    tension: 0.35,
+                    borderDash: [5, 5],
+                    pointRadius: 4,
+                    pointBackgroundColor: '#2dd4bf'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#9ca3af', font: { size: 10 } } }
+            },
+            scales: {
+                x: { ticks: { color: '#6b7280', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: '#6b7280', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+}
+
+// --- 4. ACHIEVEMENT BADGES & GAMIFICATION ENGINE ---
+const badgesCatalog = [
+    { id: 'first_workout', name: 'First Blood', desc: 'Completed your very first workout', icon: 'fa-dumbbell', xp: 100, color: 'text-amber-400' },
+    { id: 'streak_7', name: 'Iron Consistency', desc: 'Maintained a 7-day workout streak', icon: 'fa-fire', xp: 200, color: 'text-orange-500' },
+    { id: 'streak_30', name: 'Discipline Monster', desc: 'Crushed a 30-day relentless streak', icon: 'fa-crown', xp: 500, color: 'text-yellow-400' },
+    { id: 'century_pr', name: 'Century Club PR', desc: 'Broke 100 kg in Bench, Squat, or Deadlift', icon: 'fa-trophy', xp: 300, color: 'text-brand-400' },
+    { id: 'tonnage_titan', name: 'Tonnage Titan', desc: 'Lifted 50,000 kg total cumulative volume', icon: 'fa-weight-hanging', xp: 400, color: 'text-red-400' },
+    { id: 'early_bird', name: 'Sunrise Soldier', desc: 'Logged a morning workout before 8:00 AM', icon: 'fa-sun', xp: 150, color: 'text-yellow-300' },
+    { id: 'hydro_beast', name: 'Hydro Machine', desc: 'Hit daily 3L water hydration target 5 times', icon: 'fa-tint', xp: 150, color: 'text-blue-400' },
+    { id: 'clean_fuel', name: 'Macro Master', desc: 'Followed custom nutrition targets for 7 days', icon: 'fa-utensils', xp: 200, color: 'text-green-400' },
+    { id: 'photo_star', name: 'Transformation Star', desc: 'Uploaded 2+ body progress photos', icon: 'fa-camera', xp: 200, color: 'text-purple-400' },
+    { id: 'ambassador', name: 'Gym Ambassador', desc: 'Shared VIP invite pass with friends', icon: 'fa-user-plus', xp: 300, color: 'text-emerald-400' }
+];
+
+function addAthleteXp(amt) {
+    if (typeof appState.athleteXp !== 'number') appState.athleteXp = 100;
+    appState.athleteXp += amt;
+    renderBadgesUI();
+}
+
+function checkAndAwardBadges() {
+    if (!Array.isArray(appState.unlockedBadges)) appState.unlockedBadges = ['first_workout'];
+    const streak = appState.streak || 0;
+    const history = appState.history || [];
+    const prs = appState.personalRecords || {};
+    const photos = appState.transformationPhotos || [];
+
+    const award = (id) => {
+        if (!appState.unlockedBadges.includes(id)) {
+            appState.unlockedBadges.push(id);
+            const badge = badgesCatalog.find(b => b.id === id);
+            if (badge) {
+                addAthleteXp(badge.xp);
+                if (typeof confetti === 'function') confetti({ particleCount: 75, spread: 80, origin: { y: 0.5 } });
+                alert(`🏆 VIP BADGE UNLOCKED!\n\n"${badge.name}"\n+${badge.xp} XP Earned!`);
+            }
+        }
+    };
+
+    if (history.length >= 1) award('first_workout');
+    if (streak >= 7) award('streak_7');
+    if (streak >= 30) award('streak_30');
+
+    // Century PR check (100kg+)
+    const maxLift = Math.max(prs['Barbell Bench Press'] || 0, prs['Deadlift'] || 0, prs['Barbell Squats'] || 0);
+    if (maxLift >= 100) award('century_pr');
+
+    // Tonnage check
+    let totalVol = 0;
+    history.forEach(h => totalVol += (h.volume || 0));
+    if (totalVol >= 50000) award('tonnage_titan');
+
+    // Photos check
+    if (photos.length >= 2) award('photo_star');
+
+    saveStateToCloud();
+    renderBadgesUI();
+}
+
+function renderBadgesUI() {
+    const xp = appState.athleteXp || 100;
+    const level = Math.floor(xp / 300) + 1;
+    const nextLvlXp = level * 300;
+    const currentLvlProgress = xp % 300;
+    const pct = Math.min(100, Math.round((currentLvlProgress / 300) * 100));
+
+    // Dashboard elements
+    const dLvl = document.getElementById('dash-athlete-level');
+    const dXp = document.getElementById('dash-athlete-xp');
+    const dCount = document.getElementById('unlocked-badges-count');
+    if (dLvl) dLvl.textContent = level;
+    if (dXp) dXp.textContent = xp;
+    if (dCount) dCount.textContent = (appState.unlockedBadges || []).length;
+
+    // Badges modal elements
+    const bLvl = document.getElementById('badge-level-display');
+    const bCurXp = document.getElementById('badge-current-xp');
+    const bNextXp = document.getElementById('badge-next-xp');
+    const bFill = document.getElementById('badge-xp-fill');
+    const bUnlCount = document.getElementById('badge-unlocked-count');
+    const grid = document.getElementById('badges-container-grid');
+
+    if (bLvl) bLvl.textContent = `Level ${level} Athlete`;
+    if (bCurXp) bCurXp.textContent = xp;
+    if (bNextXp) bNextXp.textContent = nextLvlXp;
+    if (bFill) bFill.style.width = `${pct}%`;
+    if (bUnlCount) bUnlCount.textContent = (appState.unlockedBadges || []).length;
+
+    if (!grid) return;
+    const unlocked = appState.unlockedBadges || [];
+
+    grid.innerHTML = badgesCatalog.map(b => {
+        const isUnlocked = unlocked.includes(b.id);
+        return `
+            <div class="p-3.5 rounded-2xl border transition-all flex items-center gap-3 ${isUnlocked ? 'bg-gradient-to-r from-amber-950/20 to-dark-100 border-brand-500/40 shadow' : 'bg-dark-100/50 border-gray-800 opacity-60'}">
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${isUnlocked ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-gray-800 text-gray-600'}">
+                    <i class="fas ${b.icon}"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <h4 class="text-xs font-bold text-white truncate">${b.name}</h4>
+                        ${isUnlocked ? '<span class="text-[9px] text-green-400 font-extrabold">✓</span>' : '<span class="text-[9px] text-gray-500 font-mono">🔒</span>'}
+                    </div>
+                    <p class="text-[10px] text-gray-400 leading-tight mt-0.5">${b.desc}</p>
+                    <span class="text-[9px] font-bold text-brand-400 font-mono mt-1 block">+${b.xp} XP</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function openBadgesModal() {
+    renderBadgesUI();
+    const modal = document.getElementById('badges-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeBadgesModal() {
+    const modal = document.getElementById('badges-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+// --- 5. 1RM (ONE-REP MAX) CALCULATOR & STRENGTH STANDARDS ---
+function openOneRmCalculatorModal() {
+    calculateOneRm();
+    const modal = document.getElementById('onerm-calculator-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeOneRmCalculatorModal() {
+    const modal = document.getElementById('onerm-calculator-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function calculateOneRm() {
+    const weight = parseFloat(document.getElementById('onerm-input-weight').value) || 0;
+    const reps = parseInt(document.getElementById('onerm-input-reps').value) || 1;
+    const lift = document.getElementById('onerm-input-lift').value;
+    const userWeight = (appState.user && parseFloat(appState.user.weight)) || 75;
+
+    let oneRm = weight;
+    if (reps > 1) {
+        // Combined average of Epley & Brzycki formula
+        const epley = weight * (1 + reps / 30);
+        const brzycki = weight * (36 / (37 - reps));
+        oneRm = Math.round((epley + brzycki) / 2);
+    }
+
+    const resVal = document.getElementById('onerm-result-val');
+    const badge = document.getElementById('onerm-rank-badge');
+    if (resVal) resVal.textContent = `${oneRm} kg`;
+
+    // Calculate percentage rep loads
+    [95, 90, 85, 80, 75, 70].forEach(pct => {
+        const el = document.getElementById(`rep-load-${pct}`);
+        if (el) el.textContent = `${Math.round(oneRm * (pct / 100))} kg`;
+    });
+
+    // Evaluate Strength Standards Tier relative to user bodyweight
+    const ratio = oneRm / userWeight;
+    let tierText = "💪 Novice Lifter";
+    let tierColor = "bg-blue-500/20 text-blue-300 border-blue-400/50";
+
+    if (lift === 'bench') {
+        if (ratio >= 1.7) { tierText = "🏆 Elite Champion (Top 1% of Gym)"; tierColor = "bg-amber-500/20 text-amber-300 border-amber-400"; }
+        else if (ratio >= 1.3) { tierText = "🔥 Advanced Lifter (Top 10% of Gym)"; tierColor = "bg-purple-500/20 text-purple-300 border-purple-400"; }
+        else if (ratio >= 1.0) { tierText = "💪 Intermediate Lifter (Top 35% of Gym)"; tierColor = "bg-green-500/20 text-green-300 border-green-400"; }
+        else if (ratio >= 0.75) { tierText = "⚡ Novice Lifter"; tierColor = "bg-blue-500/20 text-blue-300 border-blue-400"; }
+        else { tierText = "🌱 Beginner Lifter"; tierColor = "bg-gray-700/40 text-gray-300 border-gray-600"; }
+    } else if (lift === 'squat') {
+        if (ratio >= 2.2) { tierText = "🏆 Elite Champion (Top 1% of Gym)"; tierColor = "bg-amber-500/20 text-amber-300 border-amber-400"; }
+        else if (ratio >= 1.7) { tierText = "🔥 Advanced Lifter (Top 10% of Gym)"; tierColor = "bg-purple-500/20 text-purple-300 border-purple-400"; }
+        else if (ratio >= 1.3) { tierText = "💪 Intermediate Lifter (Top 35% of Gym)"; tierColor = "bg-green-500/20 text-green-300 border-green-400"; }
+        else { tierText = "⚡ Novice Lifter"; tierColor = "bg-blue-500/20 text-blue-300 border-blue-400"; }
+    } else {
+        if (ratio >= 2.5) { tierText = "🏆 Elite Champion (Top 1% of Gym)"; tierColor = "bg-amber-500/20 text-amber-300 border-amber-400"; }
+        else if (ratio >= 2.0) { tierText = "🔥 Advanced Lifter (Top 10% of Gym)"; tierColor = "bg-purple-500/20 text-purple-300 border-purple-400"; }
+        else if (ratio >= 1.5) { tierText = "💪 Intermediate Lifter (Top 35% of Gym)"; tierColor = "bg-green-500/20 text-green-300 border-green-400"; }
+        else { tierText = "⚡ Novice Lifter"; tierColor = "bg-blue-500/20 text-blue-300 border-blue-400"; }
+    }
+
+    if (badge) {
+        badge.className = `inline-block px-3 py-1 rounded-full text-xs font-bold border ${tierColor}`;
+        badge.textContent = tierText;
+    }
+}
+
+// --- 6. PERSONAL RECORDS (PR) HALL OF FAME ---
+function openPrHallOfFameModal() {
+    renderPrHallOfFame();
+    const modal = document.getElementById('pr-hall-of-fame-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closePrHallOfFameModal() {
+    const modal = document.getElementById('pr-hall-of-fame-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function renderPrHallOfFame() {
+    const container = document.getElementById('pr-hall-cards-container');
+    if (!container) return;
+
+    const prs = appState.personalRecords || {};
+    const defaultHallLifts = [
+        { name: 'Barbell Bench Press', icon: 'fa-dumbbell', defaultWeight: 80 },
+        { name: 'Barbell Squats', icon: 'fa-shoe-prints', defaultWeight: 100 },
+        { name: 'Deadlift', icon: 'fa-bolt', defaultWeight: 120 },
+        { name: 'Overhead Press', icon: 'fa-arrow-up', defaultWeight: 50 },
+        { name: 'Barbell Rows', icon: 'fa-align-justify', defaultWeight: 70 },
+        { name: 'Pull-Ups', icon: 'fa-hand-rock', defaultWeight: 15 }
+    ];
+
+    container.innerHTML = defaultHallLifts.map(lift => {
+        const currentPr = prs[lift.name] || lift.defaultWeight;
+        const isCentury = currentPr >= 100;
+        return `
+            <div class="p-3.5 bg-dark-100 rounded-2xl border border-gray-800 hover:border-brand-500/40 transition-all flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center text-sm shrink-0">
+                        <i class="fas ${lift.icon}"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white">${lift.name}</h4>
+                        <span class="text-[9px] text-gray-400">All-Time Peak Record</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-lg font-black text-brand-400 font-mono">${currentPr} kg</span>
+                    ${isCentury ? '<span class="block text-[8px] bg-brand-500/20 text-brand-300 border border-brand-500/30 px-1.5 py-0.2 rounded font-extrabold uppercase mt-0.5">Century Club</span>' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function sharePrHallOfFame() {
+    const gymName = clientGymBranding.gymName || 'GymSolo';
+    const memberName = (appState.user && appState.user.name) || 'Athlete';
+    const prs = appState.personalRecords || {};
+    const bench = prs['Barbell Bench Press'] || 80;
+    const squat = prs['Barbell Squats'] || 100;
+    const deadlift = prs['Deadlift'] || 120;
+
+    const msg = `🏆 *MY PERSONAL RECORDS HALL OF FAME*\nAthlete: ${memberName}\nGym: ${gymName}\n━━━━━━━━━━━━━━━━━━\n🏋️‍♂️ Bench Press: ${bench} kg\n🦵 Squats: ${squat} kg\n⚡ Deadlift: ${deadlift} kg\n━━━━━━━━━━━━━━━━━━\nEvery rep counts. Training heavy at ${gymName}! 💪🔥`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// --- 7. GUIDED 5-MIN WARM-UP & COOLDOWN COACH ---
+const mobilityRoutines = {
+    warmup: [
+        { name: "Arm & Shoulder Dislocators", time: 45, desc: "Rotate arms in large smooth circles forwards & backwards to lubricate the shoulder sockets." },
+        { name: "Torso Twists & Hip Openers", time: 45, desc: "Rotate core smoothly from side to side to loosen thoracic spine and warm up lower back." },
+        { name: "Deep Bodyweight Squat Hold", time: 45, desc: "Sit in the bottom of a deep squat with elbows pushing knees out. Open groin and ankle mobility." },
+        { name: "World's Greatest Stretch", time: 60, desc: "Deep lunge with inside elbow reaching to ground, then rotate chest up towards ceiling." },
+        { name: "Light High Knees & Jacks", time: 45, desc: "Elevate heart rate, raise body temperature, and prime nervous system for heavy lifts." }
+    ],
+    cooldown: [
+        { name: "Doorway Chest & Bicep Stretch", time: 45, desc: "Forearm against door frame, gently lean forward to open chest and front delts." },
+        { name: "Overhead Lat & Tricep Reach", time: 45, desc: "Pull elbow behind head and lean gently sideways to decompress lats and spine." },
+        { name: "Standing Quad & Hip Flexor Pull", time: 45, desc: "Hold ankle to glute, tuck pelvis forward to lengthen quadriceps." },
+        { name: "Seated Hamstring & Calf Reach", time: 60, desc: "Hinge at hips with straight back and reach for toes to stretch back of legs." },
+        { name: "Relaxed Child's Pose", time: 60, desc: "Sit on heels, arms stretched far forward, deep diaphragm belly breathing to trigger parasympathetic recovery." }
+    ]
+};
+
+let activeMobilityFlow = 'warmup';
+let currentMobilityStepIndex = 0;
+let mobilityTimerInterval = null;
+let mobilitySecondsRemaining = 45;
+let isMobilityTimerRunning = false;
+
+function openWarmupCooldownModal() {
+    switchMobilityFlow('warmup');
+    const modal = document.getElementById('warmup-cooldown-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeWarmupCooldownModal() {
+    if (mobilityTimerInterval) clearInterval(mobilityTimerInterval);
+    isMobilityTimerRunning = false;
+    const modal = document.getElementById('warmup-cooldown-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function switchMobilityFlow(flow) {
+    activeMobilityFlow = flow;
+    currentMobilityStepIndex = 0;
+    if (mobilityTimerInterval) clearInterval(mobilityTimerInterval);
+    isMobilityTimerRunning = false;
+
+    const wBtn = document.getElementById('mob-tab-warmup');
+    const cBtn = document.getElementById('mob-tab-cooldown');
+    if (wBtn && cBtn) {
+        if (flow === 'warmup') {
+            wBtn.className = 'py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600 text-white';
+            cBtn.className = 'py-2 rounded-xl text-xs font-bold transition-all text-gray-400 hover:text-white';
+        } else {
+            cBtn.className = 'py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600 text-white';
+            wBtn.className = 'py-2 rounded-xl text-xs font-bold transition-all text-gray-400 hover:text-white';
+        }
+    }
+
+    renderMobilityStep();
+}
+
+function renderMobilityStep() {
+    const list = mobilityRoutines[activeMobilityFlow] || mobilityRoutines.warmup;
+    const step = list[currentMobilityStepIndex] || list[0];
+    mobilitySecondsRemaining = step.time;
+
+    const counter = document.getElementById('mob-step-counter');
+    const title = document.getElementById('mob-step-title');
+    const desc = document.getElementById('mob-step-desc');
+    const display = document.getElementById('mob-timer-display');
+    const playBtn = document.getElementById('btn-mob-play');
+    const routineList = document.getElementById('mob-routine-list');
+
+    if (counter) counter.textContent = `STEP ${currentMobilityStepIndex + 1} OF ${list.length}`;
+    if (title) title.textContent = step.name;
+    if (desc) desc.textContent = step.desc;
+    if (display) display.textContent = mobilitySecondsRemaining;
+    if (playBtn) playBtn.innerHTML = '<i class="fas fa-play mr-1"></i> Start';
+
+    if (routineList) {
+        routineList.innerHTML = list.map((s, idx) => `
+            <div class="p-2 rounded-xl text-xs flex justify-between items-center ${idx === currentMobilityStepIndex ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 font-bold' : 'text-gray-400'}">
+                <span>${idx + 1}. ${s.name}</span>
+                <span class="font-mono text-[10px]">${s.time}s</span>
+            </div>
+        `).join('');
+    }
+}
+
+function toggleMobilityTimer() {
+    const playBtn = document.getElementById('btn-mob-play');
+    if (isMobilityTimerRunning) {
+        clearInterval(mobilityTimerInterval);
+        isMobilityTimerRunning = false;
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-play mr-1"></i> Resume';
+    } else {
+        isMobilityTimerRunning = true;
+        if (playBtn) playBtn.innerHTML = '<i class="fas fa-pause mr-1"></i> Pause';
+        mobilityTimerInterval = setInterval(() => {
+            mobilitySecondsRemaining--;
+            const display = document.getElementById('mob-timer-display');
+            if (display) display.textContent = mobilitySecondsRemaining;
+
+            if (mobilitySecondsRemaining <= 0) {
+                clearInterval(mobilityTimerInterval);
+                isMobilityTimerRunning = false;
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                nextMobilityStep();
+            }
+        }, 1000);
+    }
+}
+
+function nextMobilityStep() {
+    const list = mobilityRoutines[activeMobilityFlow] || mobilityRoutines.warmup;
+    if (currentMobilityStepIndex < list.length - 1) {
+        currentMobilityStepIndex++;
+        renderMobilityStep();
+        toggleMobilityTimer();
+    } else {
+        alert("🎉 Mobility flow completed! Body primed and ready.");
+        addAthleteXp(50);
+        closeWarmupCooldownModal();
+    }
+}
+
+// --- 8. STUDIO GROUP CLASS SCHEDULE & BOOKING ---
+const defaultClassesSchedule = [
+    { id: 'c_mon_1', day: 'Monday', time: '7:00 AM – 7:45 AM', name: 'Sunrise Yoga & Spinal Mobility', coach: 'Coach Priya', spotsLeft: 4, icon: 'fa-child', color: 'text-indigo-400' },
+    { id: 'c_mon_2', day: 'Monday', time: '6:30 PM – 7:15 PM', name: 'HIIT Fat Furnace Conditioning', coach: 'Coach Marcus', spotsLeft: 2, icon: 'fa-bolt', color: 'text-red-400' },
+    { id: 'c_tue_1', day: 'Tuesday', time: '7:30 AM – 8:15 AM', name: 'CrossFit WOD & Kettlebells', coach: 'Coach Dave', spotsLeft: 5, icon: 'fa-dumbbell', color: 'text-amber-400' },
+    { id: 'c_tue_2', day: 'Tuesday', time: '7:00 PM – 8:00 PM', name: 'Zumba Dance Cardio Blast', coach: 'Coach Ananya', spotsLeft: 3, icon: 'fa-music', color: 'text-pink-400' },
+    { id: 'c_wed_1', day: 'Wednesday', time: '7:00 AM – 7:45 AM', name: 'Deep Fascial Mobility Flow', coach: 'Coach Priya', spotsLeft: 6, icon: 'fa-spa', color: 'text-emerald-400' },
+    { id: 'c_wed_2', day: 'Wednesday', time: '6:30 PM – 7:30 PM', name: 'Powerlifting Heavy Barbell Club', coach: 'Head Coach', spotsLeft: 2, icon: 'fa-weight-hanging', color: 'text-brand-400' },
+    { id: 'c_thu_1', day: 'Thursday', time: '7:30 AM – 8:15 AM', name: 'Spinning & Indoor Cycling', coach: 'Coach Dave', spotsLeft: 4, icon: 'fa-biking', color: 'text-blue-400' },
+    { id: 'c_thu_2', day: 'Thursday', time: '7:00 PM – 8:00 PM', name: 'Zumba Dance Party', coach: 'Coach Ananya', spotsLeft: 5, icon: 'fa-music', color: 'text-pink-400' },
+    { id: 'c_fri_1', day: 'Friday', time: '7:00 AM – 7:45 AM', name: 'Functional Core & Abs Torcher', coach: 'Coach Marcus', spotsLeft: 3, icon: 'fa-fire', color: 'text-orange-400' },
+    { id: 'c_sat_1', day: 'Saturday', time: '8:30 AM – 9:30 AM', name: 'Weekend Warrior BootCamp', coach: 'Head Coach & Team', spotsLeft: 6, icon: 'fa-trophy', color: 'text-yellow-400' },
+    { id: 'c_sun_1', day: 'Sunday', time: '9:00 AM – 10:00 AM', name: 'Active Recovery & Breathwork', coach: 'Coach Priya', spotsLeft: 8, icon: 'fa-leaf', color: 'text-green-400' }
+];
+
+function getStudioClasses() {
+    try {
+        const stored = localStorage.getItem('gym_studio_classes');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch(e) {}
+    return defaultClassesSchedule;
+}
+
+let selectedClassDay = 'Monday';
+
+function openClassScheduleModal() {
+    const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    selectedClassDay = todayDayName;
+    renderClassSchedule();
+    const modal = document.getElementById('class-schedule-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeClassScheduleModal() {
+    const modal = document.getElementById('class-schedule-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function selectClassDay(d) {
+    selectedClassDay = d;
+    renderClassSchedule();
+}
+
+function renderClassSchedule() {
+    const daysArr = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const pills = document.getElementById('class-day-pills');
+    const container = document.getElementById('classes-list-container');
+
+    if (pills) {
+        pills.innerHTML = daysArr.map(d => `
+            <button onclick="selectClassDay('${d}')" class="px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${d === selectedClassDay ? 'bg-indigo-600 text-white shadow' : 'bg-dark-100 text-gray-400 hover:text-white'}">
+                ${d.substring(0, 3)}
+            </button>
+        `).join('');
+    }
+
+    if (!container) return;
+    const allSchedule = getStudioClasses();
+    const filtered = allSchedule.filter(c => c.day === selectedClassDay);
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-500 italic p-6 text-center bg-dark-100 rounded-xl">No group studio sessions scheduled for ${selectedClassDay}. Open gym floor training available!</p>`;
+        return;
+    }
+
+    const booked = appState.bookedClasses || [];
+
+    container.innerHTML = filtered.map(item => {
+        const isBooked = booked.includes(item.id);
+        return `
+            <div class="p-4 bg-dark-100 rounded-2xl border border-gray-800 hover:border-indigo-500/40 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 ${item.color} flex items-center justify-center text-sm shrink-0">
+                        <i class="fas ${item.icon}"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-xs font-bold text-white">${item.name}</h4>
+                            <span class="text-[9px] bg-red-500/15 text-red-300 border border-red-500/30 px-1.5 py-0.2 rounded font-extrabold uppercase">${item.spotsLeft} spots left</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-0.5"><i class="far fa-clock mr-1"></i>${item.time} • Led by ${item.coach}</p>
+                    </div>
+                </div>
+
+                ${isBooked ? `
+                    <span class="text-xs bg-green-500/20 text-green-300 border border-green-500/40 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1">
+                        <i class="fas fa-check"></i> Spot Confirmed
+                    </span>
+                ` : `
+                    <button type="button" onclick="reserveClassSpot('${item.id}', '${item.name}', '${item.time}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow shadow-indigo-600/25 shrink-0 cursor-pointer">
+                        Reserve Spot
+                    </button>
+                `}
+            </div>
+        `;
+    }).join('');
+}
+
+function reserveClassSpot(classId, className, classTime) {
+    if (!Array.isArray(appState.bookedClasses)) appState.bookedClasses = [];
+    if (!appState.bookedClasses.includes(classId)) {
+        appState.bookedClasses.push(classId);
+        saveStateToCloud();
+        addAthleteXp(75);
+        if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    }
+
+    renderClassSchedule();
+    const gymName = clientGymBranding.gymName || 'Gym';
+    const memberName = (appState.user && appState.user.name) || 'Member';
+    const phone = clientGymBranding.gymPhone || '';
+    const cleanPhone = phone.replace(/\D/g, '');
+
+    const msg = `Hi ${gymName}! 👋 I just reserved my spot for *${className}* (${classTime}). Please keep my studio spot confirmed! - ${memberName}`;
+    if (confirm(`🎉 Spot Reserved! Would you like to send a quick WhatsApp confirmation to the studio desk?`)) {
+        if (cleanPhone) {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        } else {
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    }
+}
+
+function initStudioClassesSync() {
+    if (typeof db !== 'undefined') {
+        db.collection('gym_settings').doc('studio_classes').onSnapshot(doc => {
+            if (doc.exists && Array.isArray(doc.data().classes)) {
+                localStorage.setItem('gym_studio_classes', JSON.stringify(doc.data().classes));
+                const modal = document.getElementById('class-schedule-modal');
+                if (modal && !modal.classList.contains('hidden-view')) {
+                    renderClassSchedule();
+                }
+            }
+        }, () => {});
+    }
+}
+
+// --- 9. REFER A FRIEND VIRAL PROGRAM ---
+function initReferralUI() {
+    const memberId = (appState.user && appState.user.name) ? appState.user.name.toUpperCase().replace(/\s+/g, '').slice(0, 5) : 'VIP';
+    const refCode = `IRON-${memberId}`;
+    const baseUri = window.location.href.split('#')[0].split('?')[0];
+    const refUrl = `${baseUri}#trial?ref=${refCode}`;
+
+    const linkInput = document.getElementById('referral-link-input');
+    if (linkInput) linkInput.value = refUrl;
+
+    const countDisp = document.getElementById('referrals-count-display');
+    const daysDisp = document.getElementById('referrals-days-display');
+    const joined = appState.referralsCount || 0;
+    if (countDisp) countDisp.textContent = joined;
+    if (daysDisp) daysDisp.textContent = `${joined * 7} Days`;
+}
+
+function openReferralModal() {
+    initReferralUI();
+    const modal = document.getElementById('referral-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeReferralModal() {
+    const modal = document.getElementById('referral-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function copyReferralLink() {
+    const linkInput = document.getElementById('referral-link-input');
+    if (!linkInput) return;
+    navigator.clipboard.writeText(linkInput.value).then(() => {
+        alert("✅ Invite link copied to clipboard! Share it with your friends.");
+        addAthleteXp(50);
+        checkAndAwardBadges();
+    }).catch(() => {
+        prompt("Copy your invite link:", linkInput.value);
+    });
+}
+
+function shareReferralWhatsApp() {
+    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const memberName = (appState.user && appState.user.name) || 'A friend';
+    const linkInput = document.getElementById('referral-link-input');
+    const refUrl = linkInput ? linkInput.value : window.location.href;
+
+    const msg = `Hey! 💪 ${memberName} invited you to train at *${gymName}*!\n\nActivate your *3-Day Free VIP Trial Pass* here:\n👉 ${refUrl}\n\nIncludes free gym floor access & a free coach session. Let's hit the weights together! 🚀🔥`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    addAthleteXp(100);
+    checkAndAwardBadges();
+}
+
+// --- 10. EXERCISE FORM TIPS & VIDEO DEMO COACH ---
+let currentFormGuideExercise = 'Barbell Bench Press';
+
+const exerciseFormCuesDB = {
+    'Barbell Bench Press': {
+        category: 'CHEST • COMPOUND PRESS',
+        muscles: 'Pectoralis Major, Anterior Deltoids, Triceps Brachii',
+        cues: [
+            "Retract and depress shoulder blades into the bench to build a rock-solid base.",
+            "Tuck elbows at a 45° to 60° angle — avoid flaring elbows at 90° to protect shoulders.",
+            "Plant feet flat into the ground and utilize active leg drive through each rep."
+        ],
+        mistakes: [
+            "Bouncing the barbell violently off the ribcage.",
+            "Lifting hips and glutes off the bench during the push."
+        ]
+    },
+    'Barbell Squats': {
+        category: 'LEGS • COMPOUND SQUAT',
+        muscles: 'Quadriceps, Gluteus Maximus, Hamstrings, Core Stabilizers',
+        cues: [
+            "Brace your core 360° with a deep Valsalva breath before initiating the descent.",
+            "Break at the hips and knees simultaneously; drive knees outward in line with toes.",
+            "Keep chest tall and maintain mid-foot balance throughout the lift."
+        ],
+        mistakes: [
+            "Knees caving inward (valgus collapse) on the way up.",
+            "Shifting weight onto the toes or letting heels rise off the floor."
+        ]
+    },
+    'Deadlift': {
+        category: 'POSTERIOR CHAIN • HEAVY PULL',
+        muscles: 'Hamstrings, Glutes, Erector Spinae, Lats, Traps, Forearms',
+        cues: [
+            "Set bar over mid-foot (1 inch from shins) and hinge hips back.",
+            "Engage lats by squeezing armpits shut; pull the slack out of the barbell before lifting.",
+            "Push the floor away through your heels like a leg press until past knees, then squeeze glutes to lockout."
+        ],
+        mistakes: [
+            "Rounding the lower back under heavy load.",
+            "Hyperextending and leaning backwards at the top of the lockout."
+        ]
+    },
+    'Overhead Press': {
+        category: 'SHOULDERS • VERTICAL PRESS',
+        muscles: 'Anterior & Lateral Deltoids, Triceps, Upper Chest, Core',
+        cues: [
+            "Squeeze glutes and quads tight to prevent lower back arching.",
+            "Press bar in a straight vertical path, pulling head slightly back as bar passes nose.",
+            "Lock out arms directly overhead and punch traps upward to stabilize shoulders."
+        ],
+        mistakes: [
+            "Excessively leaning back to turn the lift into an incline bench press.",
+            "Bending the knees to push-press when training strict overhead strength."
+        ]
+    },
+    'Pull-Ups': {
+        category: 'BACK • VERTICAL PULL',
+        muscles: 'Latissimus Dorsi, Teres Major, Biceps, Rhomboids',
+        cues: [
+            "Initiate the movement by depressing your shoulder blades down away from ears.",
+            "Drive elbows straight down towards your back pockets.",
+            "Control the descent for a full dead-hang stretch at the bottom of each rep."
+        ],
+        mistakes: [
+            "Kicking legs and kipping instead of pulling with pure back contraction.",
+            "Doing partial half-reps without reaching full arm extension."
+        ]
+    }
+};
+
+function openExerciseFormGuide(exName) {
+    currentFormGuideExercise = exName;
+    const info = exerciseFormCuesDB[exName] || {
+        category: 'EXERCISE TECHNIQUE',
+        muscles: 'Target Muscle Group & Synergists',
+        cues: [
+            "Control the eccentric (lowering) phase for 2 to 3 seconds for maximum hypertrophy.",
+            "Squeeze target muscles hard at peak contraction without momentum.",
+            "Maintain a stable neutral spine and locked core throughout the movement."
+        ],
+        mistakes: [
+            "Using excessive momentum, swinging, or jerky reps.",
+            "Sacrificing range of motion to lift an ego-inflated weight."
+        ]
+    };
+
+    const titleEl = document.getElementById('form-guide-title');
+    const catEl = document.getElementById('form-guide-category');
+    const muscEl = document.getElementById('form-guide-muscles');
+    const cuesEl = document.getElementById('form-guide-cues-list');
+    const errEl = document.getElementById('form-guide-mistakes-list');
+
+    if (titleEl) titleEl.textContent = exName;
+    if (catEl) catEl.textContent = info.category;
+    if (muscEl) muscEl.textContent = `Primary Muscles: ${info.muscles}`;
+
+    if (cuesEl) {
+        cuesEl.innerHTML = info.cues.map(c => `
+            <div class="p-2.5 bg-dark-100 rounded-xl border border-gray-800 flex items-start gap-2.5 text-xs text-gray-200">
+                <i class="fas fa-check text-green-400 mt-0.5 shrink-0"></i>
+                <span>${c}</span>
+            </div>
+        `).join('');
+    }
+
+    if (errEl) {
+        errEl.innerHTML = info.mistakes.map(m => `
+            <div class="p-2.5 bg-dark-100 rounded-xl border border-gray-800 flex items-start gap-2.5 text-xs text-red-200">
+                <i class="fas fa-times text-red-400 mt-0.5 shrink-0"></i>
+                <span>${m}</span>
+            </div>
+        `).join('');
+    }
+
+    const modal = document.getElementById('exercise-form-guide-modal');
+    if (modal) modal.classList.remove('hidden-view');
+}
+
+function closeExerciseFormGuideModal() {
+    const modal = document.getElementById('exercise-form-guide-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function openExerciseFormOnYoutube() {
+    const q = `how to do ${currentFormGuideExercise} proper form tutorial`;
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, '_blank');
+}
+
