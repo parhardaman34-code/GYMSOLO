@@ -3406,7 +3406,7 @@ function applyGymBrandingToUI() {
     const sTag = document.getElementById('story-gym-tagline');
     const sLogo = document.getElementById('story-gym-logo');
     if (sName) sName.textContent = gymName;
-    if (sTag) sTag.textContent = tagline || 'Elite Training & Strength';
+    if (sTag) sTag.textContent = tagline || 'Hit Your Fitness Target';
     if (sLogo && logo) sLogo.src = logo;
 
     // Window Title
@@ -3826,8 +3826,8 @@ function openStoryCardModal(customWorkout = null) {
     }
 
     const w = activeStoryWorkout;
-    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
-    const gymTagline = clientGymBranding.gymTagline || 'Elite Training & Strength';
+    const gymName = clientGymBranding.gymName || 'Target Gym';
+    const gymTagline = clientGymBranding.gymTagline || 'Hit Your Fitness Target';
     const gymLogo = clientGymBranding.gymLogo || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&auto=format&fit=crop&q=60';
     const memberName = (appState.user && appState.user.name) || 'Member';
 
@@ -3934,8 +3934,8 @@ function renderStoryCanvas() {
     ctx.fillRect(w - 64, h - 50 - cornerSize, 14, cornerSize);
 
     // Gym Header
-    const gymName = (clientGymBranding.gymName || 'IRON FORGE FITNESS').toUpperCase();
-    const gymTagline = (clientGymBranding.gymTagline || 'ELITE STRENGTH & ATHLETICS').toUpperCase();
+    const gymName = (clientGymBranding.gymName || 'TARGET GYM').toUpperCase();
+    const gymTagline = (clientGymBranding.gymTagline || 'HIT YOUR FITNESS TARGET').toUpperCase();
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#facc15';
@@ -5652,7 +5652,7 @@ function copyReferralLink() {
 }
 
 function shareReferralWhatsApp() {
-    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const gymName = clientGymBranding.gymName || 'Target Gym';
     const memberName = (appState.user && appState.user.name) || 'A friend';
     const linkInput = document.getElementById('referral-link-input');
     const refUrl = linkInput ? linkInput.value : window.location.href;
@@ -5853,7 +5853,7 @@ function getCurrentUserLeaderboardStats() {
 }
 
 function openLeaderboardModal() {
-    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const gymName = clientGymBranding.gymName || 'Target Gym';
     const gnEl = document.getElementById('leaderboard-gym-name');
     if (gnEl) gnEl.textContent = `${gymName} • Live Community Rankings`;
     switchLeaderboardTab(activeLeaderboardTab || 'streak');
@@ -5996,7 +5996,7 @@ function renderLeaderboardUI() {
 
 function shareLeaderboardRankWhatsApp() {
     const userStats = getCurrentUserLeaderboardStats();
-    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const gymName = clientGymBranding.gymName || 'Target Gym';
     
     let list = defaultCommunityAthletes.map(a => ({ ...a, big3: a.bench + a.squat + a.deadlift }));
     list.push(userStats);
@@ -6288,7 +6288,7 @@ function applyPresetToDietPlan() {
 function shareDietPresetWhatsApp() {
     const group = indianDietPresetsDB[activePresetGoalMode] || indianDietPresetsDB['cut'];
     const preset = group[activePresetCategory] || group['veg'];
-    const gymName = clientGymBranding.gymName || 'Iron Forge Fitness';
+    const gymName = clientGymBranding.gymName || 'Target Gym';
 
     let txt = `🥗 *${gymName} — ${preset.title}*\n`;
     txt += `🎯 Goal: ${activePresetGoalMode === 'cut' ? 'Fat Loss / Shred' : 'Muscle Mass Gain'}\n`;
