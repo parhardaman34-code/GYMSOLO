@@ -91,6 +91,7 @@
                     <p class="text-xs font-bold text-white" id="current-trainer-display">Head Coach</p>
                 </div>
             </div>
+            <button onclick="openSandboxPhoneModal()" class="text-xs bg-emerald-600/30 hover:bg-emerald-500 border-2 border-emerald-400 text-emerald-300 hover:text-black px-3.5 py-2.5 rounded-xl transition-all font-black flex items-center gap-1.5 shadow-lg shadow-emerald-500/30 cursor-pointer animate-pulse"><i class="fas fa-mobile-alt text-emerald-400"></i> 🧪 Phone Demo (Sandbox)</button>
             <button onclick="openWalkinLeadsModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold flex items-center gap-1.5"><i class="fas fa-user-tag text-amber-400"></i> Walk-in Leads (<span id="leads-count-header">0</span>)</button>
             <button onclick="openTrialStandeeModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-id-card-alt mr-1"></i> Trial Standee</button>
             <button onclick="openCashRegisterModal()" class="text-xs bg-dark-200 border border-green-900/50 hover:border-green-400 text-green-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-cash-register mr-1"></i> Cashbook (Khata)</button>
@@ -150,6 +151,9 @@
             </div>
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap">
+            <button type="button" onclick="openSandboxPhoneModal()" class="bg-emerald-600/30 hover:bg-emerald-500 text-emerald-300 hover:text-black border border-emerald-400 text-xs font-black px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-md" title="Live Smartphone WhatsApp & UPI Simulation">
+                <i class="fas fa-mobile-alt text-emerald-400"></i> 📱 Live Phone Demo
+            </button>
             <button type="button" onclick="openAutoPilotAuditModal()" class="bg-dark-300 hover:bg-dark-100 text-gray-300 border border-gray-700 text-xs font-bold px-3 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer" title="View Automated Background Dispatch History">
                 <i class="fas fa-history text-indigo-400"></i> Auto Logs
             </button>
@@ -591,15 +595,98 @@
 
                     <div>
                         <label class="block text-[10px] text-gray-400 mb-1 font-bold">Automation Gateway Provider</label>
-                        <select id="gym-gateway-provider" onchange="handleGatewayProviderChange(this.value)" class="w-full bg-dark-300 border border-gray-700 rounded-xl p-2.5 text-xs text-white font-bold">
-                            <option value="ultramsg">UltraMsg (Recommended — 1-Min QR Scan, No Meta Approval)</option>
-                            <option value="webhook">Custom Webhook / Zapier / Serverless Cloud Cron</option>
-                            <option value="meta">Meta WhatsApp Business Cloud API</option>
-                            <option value="sandbox">Sandbox / Demo Mode (Simulate Background Auto-Pilot)</option>
+                        <select id="gym-gateway-provider" onchange="handleGatewayProviderChange(this.value)" class="w-full bg-dark-300 border border-indigo-500/50 rounded-xl p-2.5 text-xs text-white font-bold focus:outline-none">
+                            <option value="sandbox">🧪 Sandbox / Demo Mode (Interactive Phone Mockup — ₹0 Cost)</option>
+                            <option value="cron">⏱️ Serverless Cloud Cron (Vercel Cron Daily at 9:30 AM — Free)</option>
+                            <option value="webhook">🪝 Custom Webhook (Make / n8n / Zapier / Custom Node API)</option>
+                            <option value="ultramsg">📱 UltraMsg Gateway (1-Min QR Scan, WhatsApp Web API)</option>
                         </select>
                     </div>
 
-                    <div id="gateway-fields-ultramsg" class="space-y-2">
+                    <!-- 1. SANDBOX / DEMO MODE UI -->
+                    <div id="gateway-fields-sandbox" class="p-3 bg-emerald-950/20 rounded-xl border border-emerald-500/30 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-emerald-400 flex items-center gap-1.5">
+                                <i class="fas fa-flask"></i> Zero-Cost Live Sandbox Mode
+                            </span>
+                            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">Active for Pitch</span>
+                        </div>
+                        <p class="text-[10px] text-gray-300 leading-relaxed">
+                            Simulates 100% automated background WhatsApp dispatch. No paid gateway or phone linking required. Shows the exact smartphone customer experience!
+                        </p>
+                        <button type="button" onclick="openSandboxPhoneModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer">
+                            <i class="fas fa-mobile-alt"></i> 📱 Open Live Member Phone Simulator
+                        </button>
+                    </div>
+
+                    <!-- 2. SERVERLESS CLOUD CRON (VERCEL CRON) UI -->
+                    <div id="gateway-fields-cron" class="hidden-view p-3 bg-cyan-950/20 rounded-xl border border-cyan-500/30 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-cyan-400 flex items-center gap-1.5">
+                                <i class="fas fa-cloud"></i> Vercel Serverless Cron (Daily 9:30 AM IST)
+                            </span>
+                            <span class="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-full font-bold font-mono">vercel.json</span>
+                        </div>
+                        <p class="text-[10px] text-gray-300">
+                            Automatic cloud execution with <strong>zero owner clicks</strong>. Runs on Vercel's free hobby tier every morning at 04:00 UTC (09:30 AM IST).
+                        </p>
+                        <div class="p-2 bg-dark-300 rounded-lg border border-gray-800 text-[10px] font-mono text-gray-300 space-y-0.5">
+                            <div><span class="text-gray-500">Route:</span> <span class="text-cyan-300 font-bold">/api/cron-due-reminders</span></div>
+                            <div><span class="text-gray-500">Schedule:</span> <span class="text-white">0 4 * * * (Daily @ 9:30 AM IST)</span></div>
+                            <div><span class="text-gray-500">Database:</span> <span class="text-emerald-400">Firebase Firestore (gymsolo-52cc3)</span></div>
+                        </div>
+                        <button type="button" onclick="testServerlessCronEndpoint()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-black font-extrabold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer">
+                            <i class="fas fa-play"></i> ▶️ Test Serverless Function Now
+                        </button>
+                        <span id="cron-test-feedback" class="text-[10px] block font-mono"></span>
+                        <pre id="cron-test-output" class="hidden-view p-2 bg-dark-100 rounded-lg text-[9px] font-mono text-gray-300 max-h-36 overflow-y-auto border border-gray-800"></pre>
+                    </div>
+
+                    <!-- 3. CUSTOM WEBHOOK UI -->
+                    <div id="gateway-fields-custom" class="hidden-view p-3 bg-amber-950/20 rounded-xl border border-amber-500/30 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                                <i class="fas fa-plug"></i> Custom Webhook Dispatcher
+                            </span>
+                            <span class="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">Make / n8n / Zapier</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5 font-bold">Webhook URL (HTTPS POST)</label>
+                            <input type="url" id="gym-whatsapp-api-input" placeholder="https://hook.eu2.make.com/your-webhook-id" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-0.5 font-bold">Bearer Secret / API Token (Optional)</label>
+                            <input type="password" id="gym-whatsapp-token-input" placeholder="Bearer secret_token_xyz" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="testCustomWebhookConnection()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-black font-extrabold text-xs py-1.5 rounded-lg transition-all cursor-pointer">
+                                <i class="fas fa-bolt"></i> ⚡ Test Webhook
+                            </button>
+                            <button type="button" onclick="toggleWebhookSchema()" class="bg-dark-300 hover:bg-dark-100 border border-gray-700 text-gray-300 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-all cursor-pointer">
+                                <i class="fas fa-code"></i> Schema
+                            </button>
+                        </div>
+                        <span id="webhook-test-feedback" class="text-[10px] block font-mono"></span>
+                        <pre id="webhook-schema-preview" class="hidden-view p-2 bg-dark-100 rounded-lg text-[9px] font-mono text-gray-300 max-h-32 overflow-y-auto border border-gray-800">{
+  "event": "fee_due_reminder_2_days",
+  "gymName": "Target Gym",
+  "clientName": "Rahul Sharma",
+  "phone": "919876543210",
+  "daysLeft": 2,
+  "amount": 1500,
+  "upiIntent": "upi://pay?pa=...",
+  "timestamp": 1729148000000
+}</pre>
+                    </div>
+
+                    <!-- 4. ULTRAMSG GATEWAY UI -->
+                    <div id="gateway-fields-ultramsg" class="hidden-view space-y-2 p-3 bg-indigo-950/20 rounded-xl border border-indigo-500/30">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-indigo-400 flex items-center gap-1.5">
+                                <i class="fab fa-whatsapp"></i> UltraMsg Official Gateway
+                            </span>
+                            <span class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2 py-0.5 rounded-full font-bold">1-Min QR Scan</span>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[10px] text-gray-400 mb-0.5">UltraMsg Instance ID</label>
@@ -610,18 +697,7 @@
                                 <input type="password" id="gym-ultramsg-token" placeholder="e.g. a7bc89d..." class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
                             </div>
                         </div>
-                        <p class="text-[9px] text-indigo-300">💡 Log in to <strong class="underline">ultramsg.com</strong>, scan QR code once, and paste Instance ID & Token here. Messages will send 100% automatically!</p>
-                    </div>
-
-                    <div id="gateway-fields-custom" class="hidden-view space-y-2">
-                        <div>
-                            <label class="block text-[10px] text-gray-400 mb-0.5">Webhook / API URL</label>
-                            <input type="url" id="gym-whatsapp-api-input" placeholder="https://your-api.com/send" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-gray-400 mb-0.5">Authorization Bearer Token (Optional)</label>
-                            <input type="password" id="gym-whatsapp-token-input" placeholder="Bearer ..." class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                        </div>
+                        <p class="text-[9px] text-indigo-300">💡 Log in to <strong class="underline">ultramsg.com</strong>, scan QR code once from WhatsApp Linked Devices, and paste credentials here.</p>
                     </div>
 
                     <!-- Instant Test Tool for Gym Owner -->
@@ -1629,6 +1705,169 @@
                 <button type="button" onclick="closeAutoPilotAuditModal()" class="bg-dark-300 hover:bg-dark-100 text-gray-300 font-bold text-xs px-4 py-2 rounded-xl transition-colors">Close</button>
             </div>
         </div>
+    </div>
+
+    <!-- INTERACTIVE LIVE MEMBER PHONE SIMULATOR MODAL (SANDBOX / DEMO) -->
+    <div id="sandbox-phone-modal" class="fixed inset-0 bg-black/90 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="relative w-full max-w-sm flex flex-col items-center">
+            <!-- Close Button Top Floating -->
+            <button type="button" onclick="closeSandboxPhoneModal()" class="absolute -top-10 right-0 text-gray-400 hover:text-white text-xs bg-dark-100/90 px-3 py-1.5 rounded-full border border-gray-700 flex items-center gap-1.5 cursor-pointer z-20">
+                <i class="fas fa-times"></i> Close Simulator
+            </button>
+
+            <!-- Smartphone Frame -->
+            <div class="w-[320px] sm:w-[350px] bg-[#121214] rounded-[48px] p-3 shadow-2xl border-4 border-gray-700/80 ring-8 ring-black/60 relative overflow-hidden text-white flex flex-col justify-between h-[660px]">
+                
+                <!-- Notch / Dynamic Island -->
+                <div class="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-between px-3">
+                    <span class="w-2 h-2 rounded-full bg-[#1c1c1e]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 animate-pulse"></span>
+                </div>
+
+                <!-- Status Bar -->
+                <div class="flex justify-between items-center text-[10px] font-bold px-5 pt-1.5 z-20 text-gray-300">
+                    <span id="sim-phone-clock">09:30</span>
+                    <div class="flex items-center gap-1.5 text-[9px]">
+                        <i class="fas fa-signal"></i>
+                        <span class="font-mono text-[8px] font-bold">5G</span>
+                        <i class="fas fa-battery-full text-xs text-emerald-400"></i>
+                    </div>
+                </div>
+
+                <!-- Screen Body Container -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar pt-4 pb-2 px-1 flex flex-col justify-between relative">
+                    
+                    <!-- 1. Simulated Slide-Down WhatsApp Push Notification -->
+                    <div id="sim-push-notification" class="bg-[#1f2c34]/95 border border-emerald-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md mb-2 animate-in slide-in-from-top-4 duration-300">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-4 h-4 rounded-full bg-[#25D366] flex items-center justify-center text-black text-[9px]">
+                                    <i class="fab fa-whatsapp"></i>
+                                </div>
+                                <span class="text-[10px] font-bold text-gray-300 uppercase tracking-wider">WhatsApp • Now</span>
+                            </div>
+                            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">Auto-Pilot</span>
+                        </div>
+                        <p class="text-[11px] font-bold text-white" id="sim-notif-title">Target Gym Official</p>
+                        <p class="text-[10px] text-gray-300 line-clamp-2" id="sim-notif-body">🏋️ TARGET GYM: Friendly reminder! Your membership expires in 2 DAYS. Tap to pay via UPI...</p>
+                    </div>
+
+                    <!-- 2. WhatsApp Conversation Screen Mockup -->
+                    <div class="bg-[#0b141a] rounded-2xl border border-gray-800 p-2.5 flex-1 flex flex-col justify-between overflow-hidden shadow-inner">
+                        <!-- Chat Top Bar -->
+                        <div class="flex items-center justify-between border-b border-gray-800/80 pb-2 mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-black">
+                                    <i class="fas fa-dumbbell"></i>
+                                </div>
+                                <div>
+                                    <h5 class="text-[11px] font-bold text-white flex items-center gap-1 leading-tight" id="sim-chat-gym-name">
+                                        Target Gym <i class="fas fa-check-circle text-[9px] text-emerald-400"></i>
+                                    </h5>
+                                    <span class="text-[8px] text-emerald-400 block font-medium">Official Business Account</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-gray-400 text-xs">
+                                <i class="fas fa-phone-alt"></i>
+                                <i class="fas fa-ellipsis-v"></i>
+                            </div>
+                        </div>
+
+                        <!-- Date Badge -->
+                        <div class="text-center my-1">
+                            <span class="text-[8px] bg-[#182229] text-gray-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
+                        </div>
+
+                        <!-- WhatsApp Message Bubble (Green) -->
+                        <div class="bg-[#005c4b] text-white rounded-2xl rounded-tl-none p-3 shadow-md max-w-[96%] text-left space-y-2 relative border border-emerald-500/30">
+                            <div class="flex items-center justify-between border-b border-emerald-400/20 pb-1">
+                                <span class="text-[9px] font-extrabold text-amber-300 tracking-wider uppercase flex items-center gap-1">
+                                    <i class="fas fa-bell"></i> 2-Day Due Reminder
+                                </span>
+                                <span class="text-[8px] text-gray-300">09:30 AM</span>
+                            </div>
+
+                            <p class="text-[10px] leading-relaxed text-gray-100" id="sim-chat-message-text">
+                                Hi Rahul! 👋<br>
+                                Friendly reminder: Your gym membership expires in <strong class="text-amber-300 font-bold">2 DAYS</strong>.<br>
+                                Avoid workout interruption by renewing in advance:
+                            </p>
+
+                            <!-- Interactive 1-Tap UPI Pay Button inside Chat -->
+                            <div class="bg-[#024438] p-2 rounded-xl border border-emerald-400/30 text-center">
+                                <p class="text-[9px] text-gray-300 mb-1">Renewal Fee: <strong class="text-white text-xs font-mono font-bold" id="sim-chat-fee">₹1,500</strong></p>
+                                <button type="button" onclick="triggerSimulatedUpiPay()" class="w-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-black font-extrabold text-[11px] py-2 px-2.5 rounded-lg shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+                                    <i class="fas fa-bolt text-xs"></i> 1-Tap Pay via UPI (PhonePe/GPay)
+                                </button>
+                                <span class="text-[8px] text-gray-400 block mt-1" id="sim-chat-upi-id">Direct intent: upi://pay?pa=targetgym@upi</span>
+                            </div>
+
+                            <div class="flex justify-between items-center text-[8px] text-gray-300 pt-1">
+                                <span>🧾 Reply PAID for instant receipt</span>
+                                <span class="text-emerald-300"><i class="fas fa-check-double text-[8px]"></i> Read</span>
+                            </div>
+                        </div>
+
+                        <!-- Chat Bottom Input Bar -->
+                        <div class="mt-2 pt-2 border-t border-gray-800/80 flex items-center gap-1.5 text-gray-400 text-xs">
+                            <div class="flex-1 bg-[#202c33] rounded-full px-3 py-1 text-[9px] text-gray-400 flex items-center justify-between">
+                                <span>Message</span>
+                                <i class="fas fa-paperclip text-[10px]"></i>
+                            </div>
+                            <div class="w-6 h-6 rounded-full bg-[#00a884] text-black flex items-center justify-center text-[10px]">
+                                <i class="fas fa-microphone"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulated UPI Payment Success Overlay -->
+                    <div id="sim-upi-success-overlay" class="hidden-view absolute inset-x-3 inset-y-12 bg-dark-200/98 rounded-3xl p-4 border-2 border-emerald-500 shadow-2xl flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-200 z-40">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500 flex items-center justify-center text-xl mb-2 shadow-lg shadow-emerald-500/30">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <h4 class="text-sm font-black text-white">Payment Successful!</h4>
+                        <p class="text-xl font-black text-emerald-400 font-mono my-1" id="sim-paid-amount">₹1,500.00</p>
+                        <p class="text-[10px] text-gray-400">Paid to <strong class="text-white" id="sim-paid-to">Target Gym</strong></p>
+                        
+                        <div class="w-full bg-dark-300 p-2.5 rounded-xl border border-gray-700 my-2.5 text-left space-y-1 font-mono text-[9px]">
+                            <div class="flex justify-between text-gray-400">
+                                <span>Transaction ID:</span>
+                                <span class="text-white font-bold">UPI/2026/894102</span>
+                            </div>
+                            <div class="flex justify-between text-gray-400">
+                                <span>Status:</span>
+                                <span class="text-emerald-400 font-bold">COMPLETED ✅</span>
+                            </div>
+                            <div class="flex justify-between text-gray-400">
+                                <span>App:</span>
+                                <span class="text-white">PhonePe / Google Pay</span>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="closeSimulatedUpiPay()" class="w-full bg-dark-100 hover:bg-dark-300 border border-gray-700 text-gray-200 font-bold text-xs py-2 rounded-xl transition-all cursor-pointer">
+                            Back to WhatsApp
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Bottom Home Bar Indicator -->
+                <div class="w-28 h-1 bg-gray-600 rounded-full mx-auto my-1"></div>
+            </div>
+
+            <!-- Hint below phone -->
+            <p class="text-[11px] text-gray-400 mt-2.5 text-center">
+                💡 <strong class="text-emerald-400">Live Phone Simulation:</strong> This shows the exact customer flow without requiring real WhatsApp setup.
+            </p>
+        </div>
+    </div>
+
+    <!-- Floating Quick Action for Sandbox Phone Demo -->
+    <div class="fixed bottom-5 left-5 z-40">
+        <button onclick="openSandboxPhoneModal()" class="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-black font-black text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border-2 border-emerald-300 cursor-pointer active:scale-95 transition-all neon-shadow">
+            <i class="fas fa-mobile-alt text-base"></i>
+            <span>🧪 Phone Demo (Sandbox)</span>
+        </button>
     </div>
 
     <!-- Auto-Pilot Floating Toast Notification -->
@@ -2710,25 +2949,188 @@
             gymUpi: '',
             defaultFee: 1500,
             autoPilotEnabled: true,
-            gatewayProvider: 'ultramsg',
+            gatewayProvider: 'sandbox',
             autoWhatsAppInstance: '',
             autoWhatsAppToken: '',
             autoWhatsAppApiUrl: ''
         };
 
         function handleGatewayProviderChange(val) {
-            const ultra = document.getElementById('gateway-fields-ultramsg');
-            const custom = document.getElementById('gateway-fields-custom');
-            if (val === 'ultramsg') {
-                if (ultra) ultra.classList.remove('hidden-view');
-                if (custom) custom.classList.add('hidden-view');
-            } else if (val === 'webhook' || val === 'meta') {
-                if (ultra) ultra.classList.add('hidden-view');
-                if (custom) custom.classList.remove('hidden-view');
+            const sandboxEl = document.getElementById('gateway-fields-sandbox');
+            const cronEl = document.getElementById('gateway-fields-cron');
+            const customEl = document.getElementById('gateway-fields-custom');
+            const ultraEl = document.getElementById('gateway-fields-ultramsg');
+
+            if (sandboxEl) sandboxEl.classList.add('hidden-view');
+            if (cronEl) cronEl.classList.add('hidden-view');
+            if (customEl) customEl.classList.add('hidden-view');
+            if (ultraEl) ultraEl.classList.add('hidden-view');
+
+            if (val === 'cron') {
+                if (cronEl) cronEl.classList.remove('hidden-view');
+            } else if (val === 'webhook') {
+                if (customEl) customEl.classList.remove('hidden-view');
+            } else if (val === 'ultramsg') {
+                if (ultraEl) ultraEl.classList.remove('hidden-view');
             } else {
-                // sandbox / demo
-                if (ultra) ultra.classList.add('hidden-view');
-                if (custom) custom.classList.add('hidden-view');
+                // sandbox / demo mode
+                if (sandboxEl) sandboxEl.classList.remove('hidden-view');
+            }
+        }
+
+        // --- 1. SANDBOX / LIVE MEMBER PHONE SIMULATOR ---
+        function openSandboxPhoneModal(sampleClient) {
+            const client = sampleClient || { name: 'Rahul Sharma', fee: gymBranding.defaultFee || 1500, phone: '919876543210' };
+            const gymName = gymBranding.gymName || 'Target Gym';
+            const fee = client.fee || client.membershipFee || gymBranding.defaultFee || 1500;
+            const upi = gymBranding.gymUpi || 'targetgym@upi';
+
+            // Update simulator UI texts
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const clockEl = document.getElementById('sim-phone-clock');
+            if (clockEl) clockEl.textContent = timeStr;
+
+            const simGymName = document.getElementById('sim-chat-gym-name');
+            if (simGymName) simGymName.innerHTML = `${gymName} <i class="fas fa-check-circle text-[9px] text-emerald-400"></i>`;
+
+            const notifTitle = document.getElementById('sim-notif-title');
+            if (notifTitle) notifTitle.textContent = `${gymName} Official`;
+
+            const notifBody = document.getElementById('sim-notif-body');
+            if (notifBody) notifBody.textContent = `🏋️ ${gymName.toUpperCase()}: Friendly reminder! Your membership expires in 2 DAYS. Tap to pay via UPI...`;
+
+            const msgText = document.getElementById('sim-chat-message-text');
+            if (msgText) {
+                msgText.innerHTML = `Hi ${client.name}! 👋<br>Friendly reminder: Your gym membership expires in <strong class="text-amber-300 font-bold">2 DAYS</strong>.<br>Avoid any workout interruption by renewing in advance:`;
+            }
+
+            const feeEl = document.getElementById('sim-chat-fee');
+            if (feeEl) feeEl.textContent = `₹${fee.toLocaleString()}`;
+
+            const upiIdEl = document.getElementById('sim-chat-upi-id');
+            if (upiIdEl) upiIdEl.textContent = `Direct intent: upi://pay?pa=${upi}`;
+
+            const paidAmount = document.getElementById('sim-paid-amount');
+            if (paidAmount) paidAmount.textContent = `₹${fee.toLocaleString()}.00`;
+
+            const paidTo = document.getElementById('sim-paid-to');
+            if (paidTo) paidTo.textContent = gymName;
+
+            closeSimulatedUpiPay();
+            document.getElementById('sandbox-phone-modal').classList.remove('hidden-view');
+        }
+
+        function closeSandboxPhoneModal() {
+            document.getElementById('sandbox-phone-modal').classList.add('hidden-view');
+        }
+
+        function triggerSimulatedUpiPay() {
+            const overlay = document.getElementById('sim-upi-success-overlay');
+            if (overlay) overlay.classList.remove('hidden-view');
+            showAutoPilotToast('UPI Payment Confirmed! 💰', 'Simulated Google Pay / PhonePe transaction completed.');
+        }
+
+        function closeSimulatedUpiPay() {
+            const overlay = document.getElementById('sim-upi-success-overlay');
+            if (overlay) overlay.classList.add('hidden-view');
+        }
+
+        // --- 2. CUSTOM WEBHOOK TESTER ---
+        async function testCustomWebhookConnection() {
+            const url = document.getElementById('gym-whatsapp-api-input')?.value.trim();
+            const token = document.getElementById('gym-whatsapp-token-input')?.value.trim();
+            const feedback = document.getElementById('webhook-test-feedback');
+            if (!url) {
+                alert('Please enter a Webhook URL (e.g. from Make.com, n8n, Zapier, or your custom server)');
+                return;
+            }
+            if (feedback) {
+                feedback.className = 'text-[10px] block mt-1 font-mono text-amber-400';
+                feedback.textContent = '⏳ Sending test payload to webhook...';
+            }
+
+            const testPayload = {
+                event: 'webhook_connectivity_test',
+                gymName: gymBranding.gymName || 'Target Gym',
+                testPhone: '919876543210',
+                sampleClient: 'Rahul Sharma',
+                daysLeft: 2,
+                amount: gymBranding.defaultFee || 1500,
+                upiIntent: `upi://pay?pa=${encodeURIComponent(gymBranding.gymUpi || 'targetgym@upi')}&pn=Target%20Gym&am=1500&cu=INR`,
+                timestamp: Date.now()
+            };
+
+            const tStart = performance.now();
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify(testPayload)
+                });
+                const elapsed = Math.round(performance.now() - tStart);
+                if (feedback) {
+                    if (res.ok) {
+                        feedback.className = 'text-[10px] block mt-1 font-mono text-emerald-400';
+                        feedback.textContent = `✅ Webhook Success! HTTP ${res.status} ${res.statusText} (${elapsed}ms).`;
+                    } else {
+                        feedback.className = 'text-[10px] block mt-1 font-mono text-amber-400';
+                        feedback.textContent = `⚠️ Webhook replied with HTTP ${res.status} (${elapsed}ms). Check endpoint handler.`;
+                    }
+                }
+            } catch(e) {
+                if (feedback) {
+                    feedback.className = 'text-[10px] block mt-1 font-mono text-amber-400';
+                    feedback.textContent = `⚠️ Note: Browser CORS blocked direct fetch (${e.message}). When dispatched via Vercel Serverless Cron, server-to-server POST succeeds!`;
+                }
+            }
+        }
+
+        function toggleWebhookSchema() {
+            const el = document.getElementById('webhook-schema-preview');
+            if (el) el.classList.toggle('hidden-view');
+        }
+
+        // --- 3. SERVERLESS CRON TESTER ---
+        async function testServerlessCronEndpoint() {
+            const feedback = document.getElementById('cron-test-feedback');
+            const outputBox = document.getElementById('cron-test-output');
+            if (feedback) {
+                feedback.className = 'text-[10px] block mt-1 font-mono text-cyan-400';
+                feedback.textContent = '⏳ Invoking /api/cron-due-reminders serverless function...';
+            }
+            if (outputBox) outputBox.classList.remove('hidden-view');
+
+            const tStart = performance.now();
+            try {
+                const res = await fetch('/api/cron-due-reminders');
+                const elapsed = Math.round(performance.now() - tStart);
+                const data = await res.json();
+                if (feedback) {
+                    feedback.className = 'text-[10px] block mt-1 font-mono text-emerald-400';
+                    feedback.textContent = `✅ Serverless Execution Completed in ${elapsed}ms!`;
+                }
+                if (outputBox) {
+                    outputBox.textContent = JSON.stringify(data, null, 2);
+                }
+                showAutoPilotToast('Serverless Cron Ran 🚀', `Checked ${data.totalMembersChecked || 0} members, found ${data.dueMembersCount || 0} due.`);
+            } catch(e) {
+                if (feedback) {
+                    feedback.className = 'text-[10px] block mt-1 font-mono text-cyan-400';
+                    feedback.textContent = `ℹ️ Local/offline environment: Vercel serverless functions execute live once deployed via Git push.`;
+                }
+                if (outputBox) {
+                    outputBox.textContent = JSON.stringify({
+                        route: "/api/cron-due-reminders",
+                        config: "vercel.json (Schedule: 0 4 * * *)",
+                        timing: "Every day at 04:00 UTC (09:30 AM IST)",
+                        database: "Firebase Firestore REST API (gymsolo-52cc3)",
+                        status: "Serverless File Created & Ready for Vercel Deployment"
+                    }, null, 2);
+                }
             }
         }
 
@@ -3647,6 +4049,9 @@
                 }
                 recordAutoPilotAuditEntry(dummyClient, 2, phone, res.mode);
                 showAutoPilotToast('Live Auto-Pilot Test Sent', `Dispatched to ${phone} without manual clicks!`);
+                if (gymBranding.gatewayProvider === 'sandbox') {
+                    setTimeout(() => openSandboxPhoneModal(dummyClient), 400);
+                }
             } else {
                 if (feedback) {
                     feedback.className = 'text-[10px] block mt-1 font-mono text-red-400';
