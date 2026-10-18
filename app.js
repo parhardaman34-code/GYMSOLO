@@ -330,22 +330,33 @@ let appState = {
     supplements: { 'Whey Protein': false, 'Creatine': false, 'Magnesium': false }
 };
 
-let clientId = localStorage.getItem('gymsolo_client_id');
+let clientId = localStorage.getItem('gymsolo_client_id') || localStorage.getItem('gymsolo_last_user_id');
 if (!clientId) {
     clientId = 'user_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('gymsolo_client_id', clientId);
 }
+localStorage.setItem('gymsolo_client_id', clientId);
+localStorage.setItem('gymsolo_last_user_id', clientId);
 
 function saveStateToCloud() {
     if (!appState.onboarded) return; // Do not push un-onboarded / logged out state to cloud
     localStorage.setItem('gymsolo_state', JSON.stringify(appState));
+    if (clientId) {
+        localStorage.setItem('gymsolo_client_id', clientId);
+        localStorage.setItem('gymsolo_last_user_id', clientId);
+        try {
+            localStorage.setItem('gymsolo_backup_' + clientId, JSON.stringify(appState));
+        } catch(e) {}
+    }
     if (typeof db !== 'undefined') {
-        db.collection('clients').doc(clientId).set({
+        const payload = {
             id: clientId,
-            name: appState.user.name || 'Anonymous',
+            name: (appState.user && appState.user.name) || 'Anonymous',
+            phone: (appState.user && appState.user.phone) || '',
             appState: appState,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(err => console.log("Firebase sync error:", err));
+        };
+        db.collection('clients').doc(clientId).set(payload, { merge: true }).catch(err => console.log("Firebase sync error:", err));
     }
 }
 
@@ -360,9 +371,22 @@ function handleRemoteLogout(reason = "Your account has been removed by the gym a
         clearActiveWorkoutSession();
     }
     
-    // Clear all client identifiers and app state from storage
+    // Preserve local backup and last ID before disconnecting
+    const prevId = clientId;
+    if (prevId) {
+        localStorage.setItem('gymsolo_last_user_id', prevId);
+        try {
+            localStorage.setItem('gymsolo_backup_' + prevId, JSON.stringify(appState));
+        } catch(e) {}
+    }
+
+    if (typeof clientSnapshotUnsubscribe === 'function') {
+        try { clientSnapshotUnsubscribe(); } catch(e) {}
+        clientSnapshotUnsubscribe = null;
+    }
+
+    // Clear active session
     localStorage.removeItem('gymsolo_state');
-    localStorage.removeItem('gymsolo_client_id');
     localStorage.removeItem('gymsolo_workout_active');
     localStorage.removeItem('gymsolo_workout_start_time');
     localStorage.removeItem('gymsolo_active_workout_backup');
@@ -374,7 +398,7 @@ function handleRemoteLogout(reason = "Your account has been removed by the gym a
     // Reset app state in memory to fresh un-onboarded state
     appState = {
         onboarded: false,
-        user: { name: '', height: 180, weight: 75, goal: 'Weight Gain', targetWeight: 80, split: '4-day', workoutTiming: 'morning' },
+        user: { name: '', phone: '', height: 180, weight: 75, goal: 'Weight Gain', targetWeight: 80, split: '4-day', workoutTiming: 'morning' },
         streak: 0,
         history: [],
         todayPlan: [],
@@ -397,6 +421,8 @@ function handleRemoteLogout(reason = "Your account has been removed by the gym a
     if (editModal) editModal.classList.add('hidden-view');
     const mealCalcModal = document.getElementById('meal-calc-modal');
     if (mealCalcModal) mealCalcModal.classList.add('hidden-view');
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal) settingsModal.classList.add('hidden-view');
 
     // Switch views: hide main app, show onboarding flow
     const mainApp = document.getElementById('main-app');
@@ -415,6 +441,63 @@ function handleRemoteLogout(reason = "Your account has been removed by the gym a
         alert(reason);
         isLoggingOut = false;
     }, 150);
+}
+
+// --- CLOUD SYNC REALTIME LISTENER ---
+let clientSnapshotUnsubscribe = null;
+function attachClientCloudListener() {
+    if (typeof db === 'undefined' || !clientId) return;
+    if (typeof clientSnapshotUnsubscribe === 'function') {
+        try { clientSnapshotUnsubscribe(); } catch(e) {}
+        clientSnapshotUnsubscribe = null;
+    }
+
+    clientSnapshotUnsubscribe = db.collection('clients').doc(clientId).onSnapshot(docSnap => {
+        if (docSnap.exists) {
+            const data = docSnap.data();
+
+            // Check if admin has marked this client as removed / logged out
+            if (data.isRemoved || data.loggedOut || data.appState?.removed) {
+                handleRemoteLogout("Your account has been removed by the gym administrator.");
+                return;
+            }
+
+            const cloudState = data.appState;
+            if (!cloudState) return;
+
+            // Merge cloud state into app memory and persist locally
+            appState = { ...appState, ...cloudState };
+            localStorage.setItem('gymsolo_state', JSON.stringify(appState));
+            localStorage.setItem('gymsolo_last_user_id', clientId);
+            
+            const isChatOpen = !document.getElementById('chat-modal').classList.contains('hidden-view');
+            if (isChatOpen) {
+                appState.unreadMessages = 0;
+                renderChatMessages();
+            }
+
+            if (appState.onboarded) {
+                if (!isWorkoutActive) {
+                    initMainApp();
+                }
+                
+                // If Diet tab is active, re-render it immediately
+                const dietTab = document.getElementById('tab-diet');
+                if (dietTab && !dietTab.classList.contains('hidden-view')) {
+                    renderDietPlan();
+                }
+            }
+        } else {
+            // If local app is onboarded but docSnap does not exist in Firestore,
+            // re-sync local data to cloud instead of destructively wiping user's device!
+            if (appState.onboarded) {
+                console.warn("Client doc not found in Firestore. Re-syncing local state to cloud...");
+                saveStateToCloud();
+            }
+        }
+    }, err => {
+        console.warn("Firestore snapshot listener error:", err);
+    });
 }
 
 // --- INITIALIZATION ---
@@ -440,50 +523,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(appState.oled) document.body.classList.add('true-black');
     }
     
-    // Cloud Sync Listener
-    if (typeof db !== 'undefined') {
-        db.collection('clients').doc(clientId).onSnapshot(docSnap => {
-            if (docSnap.exists) {
-                const data = docSnap.data();
-
-                // Check if admin has marked this client as removed / logged out
-                if (data.isRemoved || data.loggedOut || data.appState?.removed) {
-                    handleRemoteLogout("Your account has been removed by the gym administrator.");
-                    return;
-                }
-
-                const cloudState = data.appState;
-                if (!cloudState) return;
-
-                // Merge cloud state into app memory and persist locally
-                appState = { ...appState, ...cloudState };
-                localStorage.setItem('gymsolo_state', JSON.stringify(appState));
-                
-                const isChatOpen = !document.getElementById('chat-modal').classList.contains('hidden-view');
-                if (isChatOpen) {
-                    appState.unreadMessages = 0;
-                    renderChatMessages();
-                }
-
-                if (appState.onboarded) {
-                    if (!isWorkoutActive) {
-                        initMainApp();
-                    }
-                    
-                    // If Diet tab is active, re-render it immediately
-                    const dietTab = document.getElementById('tab-diet');
-                    if (dietTab && !dietTab.classList.contains('hidden-view')) {
-                        renderDietPlan();
-                    }
-                }
-            } else {
-                // If the user was onboarded and doc does not exist, admin deleted them from system
-                if (appState.onboarded) {
-                    handleRemoteLogout("Your account has been removed by the gym administrator.");
-                }
-            }
-        });
-    }
+    // Attach Real-Time Cloud Sync Listener
+    attachClientCloudListener();
     
     if (appState.onboarded) {
         document.getElementById('onboarding-flow').classList.add('hidden-view');
@@ -550,10 +591,12 @@ function nextStep(step) {
         if (step === 2) {
             // Save Step 1 basic info
             const nameEl = document.getElementById('ob-name');
+            const phoneEl = document.getElementById('ob-phone');
             const heightEl = document.getElementById('ob-height');
             const weightEl = document.getElementById('ob-weight');
 
             appState.user.name = (nameEl && nameEl.value.trim()) || 'Athlete';
+            appState.user.phone = (phoneEl && phoneEl.value.trim()) || appState.user.phone || '';
             appState.user.height = (heightEl && parseFloat(heightEl.value)) || 175;
             appState.user.weight = (weightEl && parseFloat(weightEl.value)) || 75;
             appState.user.startWeight = appState.user.weight;
@@ -1002,6 +1045,10 @@ function switchAppTab(tabId) {
 function openSettings() {
     document.getElementById('toggle-oled').checked = appState.oled;
     updateSettingsTimingUI();
+    const idInput = document.getElementById('settings-client-id-display');
+    if (idInput) {
+        idInput.value = clientId || localStorage.getItem('gymsolo_client_id') || localStorage.getItem('gymsolo_last_user_id') || '';
+    }
     document.getElementById('settings-modal').classList.remove('hidden-view');
 }
 function updateWorkoutTimingFromSettings(timing) {
@@ -1035,6 +1082,297 @@ function toggleUserWorkoutTiming() {
     updateWorkoutTimingFromSettings(next);
 }
 function closeSettings() { document.getElementById('settings-modal').classList.add('hidden-view'); }
+
+// --- MEMBER ACCOUNT & USER ID RESTORE SYSTEM ---
+function showAppToast(title, msg) {
+    let toast = document.getElementById('app-notification-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-notification-toast';
+        toast.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-dark-200/95 border border-brand-400/80 text-white px-4 py-3 rounded-2xl shadow-[0_10px_25px_rgba(0,0,0,0.85)] flex items-center gap-3 backdrop-blur-md transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none max-w-sm w-[90%]';
+        toast.innerHTML = `
+            <div class="w-8 h-8 rounded-xl bg-brand-400/20 border border-brand-400/40 flex items-center justify-center text-brand-400 shrink-0">
+                <i class="fas fa-check text-sm"></i>
+            </div>
+            <div class="min-w-0">
+                <p id="app-toast-title" class="text-xs font-bold text-white"></p>
+                <p id="app-toast-msg" class="text-[11px] text-gray-300 leading-tight"></p>
+            </div>
+        `;
+        document.body.appendChild(toast);
+    }
+    const tTitle = document.getElementById('app-toast-title');
+    const tMsg = document.getElementById('app-toast-msg');
+    if (tTitle) tTitle.textContent = title;
+    if (tMsg) tMsg.textContent = msg;
+
+    toast.classList.remove('-translate-y-24', 'opacity-0', 'pointer-events-none');
+    toast.classList.add('translate-y-0', 'opacity-100');
+    setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-24', 'opacity-0', 'pointer-events-none');
+    }, 4000);
+}
+
+function copyCurrentUserId() {
+    const idToCopy = clientId || localStorage.getItem('gymsolo_client_id') || localStorage.getItem('gymsolo_last_user_id') || '';
+    if (!idToCopy) return;
+
+    const input = document.getElementById('settings-client-id-display');
+    if (input) {
+        input.select();
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(idToCopy).then(() => {
+            showAppToast("User ID Copied! 📋", idToCopy);
+        }).catch(() => {
+            prompt("Copy Member Account ID:", idToCopy);
+        });
+    } else {
+        prompt("Copy Member Account ID:", idToCopy);
+    }
+}
+
+function handleUserLogout() {
+    if (!confirm("Are you sure you want to log out / switch account? Your workout logs, split, and diet remain safely backed up in the cloud.")) {
+        return;
+    }
+
+    // 1. Force save current state to cloud & local backup before disconnecting
+    if (appState.onboarded) {
+        saveStateToCloud();
+    }
+    const currentId = clientId;
+    if (currentId) {
+        localStorage.setItem('gymsolo_last_user_id', currentId);
+        try {
+            localStorage.setItem('gymsolo_backup_' + currentId, JSON.stringify(appState));
+        } catch (e) {}
+    }
+
+    // 2. Discard any ongoing workout timer & release wake lock
+    if (typeof clearActiveWorkoutSession === 'function') {
+        clearActiveWorkoutSession();
+    }
+
+    // 3. Detach active Firestore real-time listener
+    if (typeof clientSnapshotUnsubscribe === 'function') {
+        try { clientSnapshotUnsubscribe(); } catch (e) {}
+        clientSnapshotUnsubscribe = null;
+    }
+
+    // 4. Mark onboarded = false and clear local active session
+    appState.onboarded = false;
+    localStorage.removeItem('gymsolo_state');
+    closeSettings();
+
+    // 5. Switch to onboarding flow
+    const mainApp = document.getElementById('main-app');
+    if (mainApp) mainApp.classList.add('hidden-view');
+    const onboardFlow = document.getElementById('onboarding-flow');
+    if (onboardFlow) onboardFlow.classList.remove('hidden-view');
+
+    if (typeof showStep === 'function') {
+        showStep(1);
+    }
+
+    // 6. Open Member Login modal pre-filled with their last ID
+    openMemberLoginModal(currentId);
+    showAppToast("Logged Out Safely", "Your data is saved in cloud. Use your User ID to log back in anytime!");
+}
+
+function openMemberLoginModal(prefillId = '') {
+    const modal = document.getElementById('member-login-modal');
+    if (!modal) return;
+
+    const input = document.getElementById('login-user-identifier');
+    const feedback = document.getElementById('login-feedback-box');
+    const quickCard = document.getElementById('login-quick-restore-card');
+    const quickIdEl = document.getElementById('login-quick-restore-id');
+
+    if (feedback) {
+        feedback.className = 'hidden-view p-3 rounded-xl text-xs font-semibold';
+        feedback.innerHTML = '';
+    }
+
+    const lastId = prefillId || localStorage.getItem('gymsolo_last_user_id') || clientId || '';
+    if (input) {
+        input.value = lastId;
+    }
+
+    if (quickCard && quickIdEl) {
+        if (lastId) {
+            quickIdEl.textContent = lastId;
+            quickCard.classList.remove('hidden-view');
+        } else {
+            quickCard.classList.add('hidden-view');
+        }
+    }
+
+    modal.classList.remove('hidden-view');
+    if (input) setTimeout(() => input.focus(), 100);
+}
+
+function closeMemberLoginModal() {
+    const modal = document.getElementById('member-login-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function useQuickRestoreId() {
+    const quickIdEl = document.getElementById('login-quick-restore-id');
+    const input = document.getElementById('login-user-identifier');
+    if (quickIdEl && input) {
+        input.value = quickIdEl.textContent.trim();
+        loginAndRestoreUserData();
+    }
+}
+
+async function loginAndRestoreUserData() {
+    const input = document.getElementById('login-user-identifier');
+    const feedback = document.getElementById('login-feedback-box');
+    const submitBtn = document.getElementById('btn-submit-member-login');
+    if (!input) return;
+
+    const rawId = input.value.trim();
+    if (!rawId) {
+        if (feedback) {
+            feedback.className = 'bg-red-500/20 text-red-300 border border-red-500/40 p-3 rounded-xl text-xs font-semibold';
+            feedback.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Please enter your User ID or Phone Number.';
+            feedback.classList.remove('hidden-view');
+        }
+        return;
+    }
+
+    // Show loading state
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Searching Account...';
+    }
+    if (feedback) {
+        feedback.className = 'bg-brand-500/20 text-brand-300 border border-brand-500/40 p-3 rounded-xl text-xs font-semibold';
+        feedback.innerHTML = '<i class="fas fa-search mr-1"></i> Searching gym database for your account...';
+        feedback.classList.remove('hidden-view');
+    }
+
+    try {
+        let matchedClientData = null;
+        let matchedClientId = null;
+
+        if (typeof db !== 'undefined') {
+            // 1. Direct document ID lookup
+            try {
+                const docSnap = await db.collection('clients').doc(rawId).get();
+                if (docSnap.exists) {
+                    const d = docSnap.data();
+                    if (!d.isRemoved && !d.loggedOut) {
+                        matchedClientData = d;
+                        matchedClientId = docSnap.id;
+                    }
+                }
+            } catch (e) {
+                console.warn("Direct doc lookup error:", e);
+            }
+
+            // 2. If not found, search by phone number or client collection query
+            if (!matchedClientData) {
+                const cleanDigits = rawId.replace(/\D/g, '');
+                try {
+                    const snap = await db.collection('clients').get();
+                    snap.forEach(doc => {
+                        if (matchedClientData) return;
+                        const data = doc.data();
+                        if (data.isRemoved || data.loggedOut) return;
+
+                        const docPhone = (data.phone || (data.appState?.user?.phone) || '').replace(/\D/g, '');
+                        // Match ID, exact phone, or matching phone digits
+                        if (doc.id.toLowerCase() === rawId.toLowerCase()) {
+                            matchedClientData = data;
+                            matchedClientId = doc.id;
+                        } else if (cleanDigits.length >= 7 && (docPhone === cleanDigits || docPhone.endsWith(cleanDigits) || cleanDigits.endsWith(docPhone))) {
+                            matchedClientData = data;
+                            matchedClientId = doc.id;
+                        }
+                    });
+                } catch (e) {
+                    console.warn("Collection search error:", e);
+                }
+            }
+        }
+
+        // 3. Fallback: check localStorage backup
+        if (!matchedClientData) {
+            const localBackup = localStorage.getItem('gymsolo_backup_' + rawId) || 
+                                (rawId === localStorage.getItem('gymsolo_last_user_id') ? localStorage.getItem('gymsolo_state') : null);
+            if (localBackup) {
+                try {
+                    const parsedState = JSON.parse(localBackup);
+                    if (parsedState && (parsedState.onboarded || parsedState.user)) {
+                        matchedClientData = { appState: parsedState };
+                        matchedClientId = rawId;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        if (matchedClientData && matchedClientData.appState) {
+            // Restore client state
+            clientId = matchedClientId || rawId;
+            localStorage.setItem('gymsolo_client_id', clientId);
+            localStorage.setItem('gymsolo_last_user_id', clientId);
+            appState = { ...appState, ...matchedClientData.appState, onboarded: true };
+            localStorage.setItem('gymsolo_state', JSON.stringify(appState));
+
+            // Attach new real-time listener for this client
+            attachClientCloudListener();
+
+            if (feedback) {
+                feedback.className = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 p-3 rounded-xl text-xs font-semibold';
+                feedback.innerHTML = `<i class="fas fa-check-circle mr-1"></i> Account found! Welcome back, <b>${appState.user?.name || 'Athlete'}</b>! Restoring your workouts...`;
+            }
+
+            if (window.confetti) {
+                try {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+                } catch (e) {}
+            }
+
+            setTimeout(() => {
+                closeMemberLoginModal();
+                const onboardFlow = document.getElementById('onboarding-flow');
+                if (onboardFlow) onboardFlow.classList.add('hidden-view');
+                const mainApp = document.getElementById('main-app');
+                if (mainApp) mainApp.classList.remove('hidden-view');
+                initMainApp();
+                showAppToast("Account Restored ✓", `Welcome back, ${appState.user?.name || 'Athlete'}! All workouts & diet ready.`);
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Restore & Log In</span>';
+                }
+            }, 700);
+            return;
+        }
+
+        // Not found
+        if (feedback) {
+            feedback.className = 'bg-red-500/20 text-red-300 border border-red-500/40 p-3 rounded-xl text-xs font-semibold';
+            feedback.innerHTML = `<i class="fas fa-times-circle mr-1"></i> Account not found for "<b>${rawId}</b>". Please verify your User ID or phone number, or ask your trainer to look up your Member ID in the Admin Portal.`;
+            feedback.classList.remove('hidden-view');
+        }
+    } catch (err) {
+        console.error("Login restore error:", err);
+        if (feedback) {
+            feedback.className = 'bg-red-500/20 text-red-300 border border-red-500/40 p-3 rounded-xl text-xs font-semibold';
+            feedback.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Sync error: ${err.message || 'Please try again'}`;
+            feedback.classList.remove('hidden-view');
+        }
+    } finally {
+        if (submitBtn && (!matchedClientData || !matchedClientData.appState)) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Restore & Log In</span>';
+        }
+    }
+}
 
 // --- UNIFIED TRAINER & ADMIN PORTAL INTEGRATION ---
 function openAdminPortal() {
@@ -1148,7 +1486,7 @@ document.addEventListener('visibilitychange', () => {
                         }
                     }
                 } else if (appState.onboarded) {
-                    handleRemoteLogout("Your account has been removed by the gym administrator.");
+                    saveStateToCloud();
                 }
             }).catch(() => {});
         }

@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
             gymUpi: '',
             defaultFee: 1500,
             autoPilotEnabled: true,
-            gatewayProvider: 'meta',
+            gatewayProvider: 'greenapi',
             greenApiInstance: '',
             greenApiToken: '',
             metaPhoneId: '',
@@ -144,109 +144,34 @@ module.exports = async (req, res) => {
                          `🧾 *Instant Digital Receipt:* Once paid, reply *PAID* or share your payment screenshot to instantly generate your digital receipt.\n\n` +
                          `Have an awesome session today! 🚀💪\n— *${gymName} Desk*`;
 
-            let dispatchStatus = { success: false, mode: 'WhatsApp Cloud', client: client.name, phone: cleanPhone };
-            const provider = gymBranding.gatewayProvider || 'meta';
-
-            // 1. Green-API (100% FREE Developer Plan — 1-Min QR Scan)
-            if (provider === 'greenapi') {
-                const instance = gymBranding.greenApiInstance || gymBranding.autoWhatsAppInstance;
-                const token = gymBranding.greenApiToken || gymBranding.autoWhatsAppToken;
-                if (instance && token) {
-                    try {
-                        const cleanInst = instance.replace(/\D/g, '');
-                        const endpoint = `https://api.green-api.com/waInstance${cleanInst}/sendMessage/${token}`;
-                        const greenRes = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chatId: `${cleanPhone}@c.us`,
-                                message: body
-                            })
-                        });
-                        const greenData = await greenRes.json();
-                        dispatchStatus = {
-                            success: true,
-                            mode: 'Green-API (100% Free Plan)',
-                            client: client.name,
-                            phone: cleanPhone,
-                            apiResponse: greenData
-                        };
-                    } catch (e) {
-                        dispatchStatus = { success: false, mode: 'Green-API', error: e.message, client: client.name };
-                    }
-                } else {
-                    dispatchStatus = { success: false, mode: 'Green-API', error: 'Green-API credentials not configured in gym settings.', client: client.name };
-                }
-            }
-            // 2. Meta Official WhatsApp Cloud API (1,000 Free Messages/Month)
-            else if (provider === 'meta') {
-                if (gymBranding.metaPhoneId && gymBranding.metaAccessToken) {
-                    try {
-                        const metaEndpoint = `https://graph.facebook.com/v19.0/${gymBranding.metaPhoneId}/messages`;
-                        const metaRes = await fetch(metaEndpoint, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${gymBranding.metaAccessToken}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                messaging_product: 'whatsapp',
-                                recipient_type: 'individual',
-                                to: cleanPhone,
-                                type: 'text',
-                                text: { preview_url: false, body: body }
-                            })
-                        });
-                        const metaData = await metaRes.json();
-                        dispatchStatus = {
-                            success: true,
-                            mode: 'Meta Official Cloud API',
-                            client: client.name,
-                            phone: cleanPhone,
-                            apiResponse: metaData
-                        };
-                    } catch (e) {
-                        dispatchStatus = { success: false, mode: 'Meta Cloud', error: e.message, client: client.name };
-                    }
-                } else {
-                    dispatchStatus = { success: false, mode: 'Meta Cloud', error: 'Meta Cloud API credentials not configured in gym settings.', client: client.name };
-                }
-            }
-            // 3. UltraMsg WhatsApp Cloud Gateway
-            else if (provider === 'ultramsg') {
-                if (gymBranding.autoWhatsAppInstance && gymBranding.autoWhatsAppToken) {
-                    try {
-                        const ultraEndpoint = `https://api.ultramsg.com/${gymBranding.autoWhatsAppInstance}/messages/chat`;
-                        const params = new URLSearchParams();
-                        params.append('token', gymBranding.autoWhatsAppToken);
-                        params.append('to', cleanPhone);
-                        params.append('body', body);
-
-                        const ultraRes = await fetch(ultraEndpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: params
-                        });
-                        const ultraData = await ultraRes.json();
-                        dispatchStatus = {
-                            success: true,
-                            mode: 'UltraMsg Cloud Gateway',
-                            client: client.name,
-                            phone: cleanPhone,
-                            apiResponse: ultraData
-                        };
-                    } catch (e) {
-                        dispatchStatus = { success: false, mode: 'UltraMsg', error: e.message, client: client.name };
-                    }
-                } else {
+            let dispatchStatus = { success: false, mode: 'WhatsApp Cloud Gateway', client: client.name, phone: cleanPhone };
+            const instance = gymBranding.greenApiInstance || gymBranding.autoWhatsAppInstance;
+            const token = gymBranding.greenApiToken || gymBranding.autoWhatsAppToken;
+            if (instance && token) {
+                try {
+                    const cleanInst = instance.replace(/\D/g, '');
+                    const endpoint = `https://api.green-api.com/waInstance${cleanInst}/sendMessage/${token}`;
+                    const waRes = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId: `${cleanPhone}@c.us`,
+                            message: body
+                        })
+                    });
+                    const waData = await waRes.json();
                     dispatchStatus = {
-                        success: false,
-                        mode: 'UltraMsg Cloud Gateway',
-                        error: 'UltraMsg Instance ID and Token not configured.',
+                        success: true,
+                        mode: 'WhatsApp Cloud Gateway',
                         client: client.name,
-                        phone: cleanPhone
+                        phone: cleanPhone,
+                        apiResponse: waData
                     };
+                } catch (e) {
+                    dispatchStatus = { success: false, mode: 'WhatsApp Cloud', error: e.message, client: client.name };
                 }
+            } else {
+                dispatchStatus = { success: false, mode: 'WhatsApp Cloud', error: 'WhatsApp Gateway credentials (idInstance & apiTokenInstance) not configured in gym settings.', client: client.name };
             }
 
             dispatches.push(dispatchStatus);

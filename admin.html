@@ -93,13 +93,9 @@
             </div>
             <button onclick="openWalkinLeadsModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold flex items-center gap-1.5"><i class="fas fa-user-tag text-amber-400"></i> Walk-in Leads (<span id="leads-count-header">0</span>)</button>
             <button onclick="openTrialStandeeModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-id-card-alt mr-1"></i> Trial Standee</button>
-            <button onclick="openCashRegisterModal()" class="text-xs bg-dark-200 border border-green-900/50 hover:border-green-400 text-green-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-cash-register mr-1"></i> Cashbook (Khata)</button>
             <button onclick="openPtCommissionModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-hand-holding-usd mr-1"></i> PT Splits</button>
-            <button onclick="openStoreManagerModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-blender mr-1"></i> Shake Bar POS</button>
-            <button onclick="openCrowdControlModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-fire-alt mr-1"></i> Live Crowd</button>
             <button onclick="openBrandingModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-paint-brush mr-1"></i> Gym Branding</button>
             <button onclick="openAnnouncementsModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-bullhorn mr-1"></i> Announcements</button>
-            <button onclick="openClassManagerModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-calendar-alt mr-1"></i> Studio Classes</button>
             <button onclick="openGymQrModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-qrcode mr-1"></i> Check-In QR Desk</button>
             <button onclick="openTrainersModal()" class="text-xs bg-dark-200 border border-brand-900/50 hover:border-brand-400 text-brand-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-users-cog mr-1"></i> Trainers</button>
             <button onclick="openBackupManagerModal()" class="text-xs bg-dark-200 border border-blue-900/50 hover:border-blue-400 text-blue-400 px-3 py-2.5 rounded-xl transition-colors font-semibold"><i class="fas fa-database mr-1"></i> Data Safety & Backup</button>
@@ -205,7 +201,13 @@
     <div id="editor-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-dark-200 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl flex flex-col h-[90vh]">
             <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-xl shrink-0">
-                <h3 class="text-xl font-bold text-white"><i class="fas fa-paper-plane text-brand-400 mr-2"></i> Send Plan to <span id="edit-client-name" class="text-brand-400"></span></h3>
+                <div class="flex items-center gap-3">
+                    <h3 class="text-xl font-bold text-white"><i class="fas fa-paper-plane text-brand-400 mr-2"></i> Send Plan to <span id="edit-client-name" class="text-brand-400"></span></h3>
+                    <button type="button" onclick="copyCurrentEditingClientId()" class="text-[10px] text-brand-300 bg-brand-400/10 hover:bg-brand-400/20 px-2 py-1 rounded border border-brand-400/30 font-mono transition-all flex items-center gap-1.5 cursor-pointer shadow-sm" title="Copy Member User ID">
+                        <i class="fas fa-copy text-brand-400 text-[10px]"></i>
+                        <span id="edit-client-id-pill">Copy Member ID</span>
+                    </button>
+                </div>
                 <button onclick="closeEditor()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
             </div>
             
@@ -589,86 +591,27 @@
                         </label>
                     </div>
 
-                    <!-- 100% AUTOMATED WHATSAPP PROVIDER SELECTOR -->
-                    <div>
-                        <label class="block text-[10px] text-gray-300 mb-1 font-bold">WhatsApp Cloud Gateway (100% Automatic)</label>
-                        <select id="gym-gateway-provider" onchange="handleAutoGatewayChange(this.value)" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-brand-400 focus:outline-none font-bold">
-                            <option value="meta" selected>🔵 Meta Official WhatsApp Cloud API (1,000 Messages/Mo FREE) [Selected]</option>
-                            <option value="greenapi">🟢 Green-API (100% FREE Developer Plan — 1-Min QR Scan)</option>
-                            <option value="ultramsg">🟣 UltraMsg ($39/mo or Free Trial)</option>
-                        </select>
-                    </div>
-
-                    <!-- 1. META OFFICIAL CLOUD API (1,000 FREE MESSAGES/MO) -->
-                    <div id="gateway-fields-meta" class="space-y-3 p-4 bg-blue-950/20 rounded-2xl border border-blue-500/40">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-black text-blue-400 flex items-center gap-1.5">
-                                <i class="fab fa-facebook text-blue-400 text-sm"></i> Meta Official WhatsApp Cloud API
-                            </span>
-                            <span class="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-full font-bold">1,000 Msgs Free / Mo</span>
-                        </div>
-                        <p class="text-[10px] text-gray-300 leading-relaxed">
-                            Official Meta/Facebook WhatsApp Cloud API. <strong>1,000 free conversations every month</strong> with <strong>0% ban risk</strong> and 100% hands-free background delivery!
-                        </p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">Phone Number ID</label>
-                                <input type="text" id="gym-meta-phone-id" placeholder="e.g. 104928372910293" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">System User / Access Token</label>
-                                <input type="password" id="gym-meta-token" placeholder="e.g. EAABwz..." class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                            </div>
-                        </div>
-                        <p class="text-[9px] text-blue-300">💡 <strong>Quick Setup:</strong> Open <a href="https://developers.facebook.com" target="_blank" class="underline font-bold text-white">developers.facebook.com</a> &gt; Create App &gt; Select WhatsApp &gt; Copy your <strong>Phone Number ID</strong> and <strong>Access Token</strong> above.</p>
-                    </div>
-
-                    <!-- 2. GREEN-API (100% FREE DEVELOPER PLAN) -->
-                    <div id="gateway-fields-greenapi" class="space-y-3 p-4 bg-emerald-950/20 rounded-2xl border border-emerald-500/40 hidden-view">
+                    <!-- WHATSAPP AUTOMATION CLOUD GATEWAY -->
+                    <div id="gateway-fields-greenapi" class="space-y-3 p-4 bg-emerald-950/20 rounded-2xl border border-emerald-500/40">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-black text-emerald-400 flex items-center gap-1.5">
-                                <i class="fab fa-whatsapp text-emerald-400 text-sm"></i> Green-API WhatsApp Cloud Gateway
+                                <i class="fab fa-whatsapp text-emerald-400 text-sm"></i> WhatsApp Automation Gateway
                             </span>
-                            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">₹0 Free Plan</span>
+                            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">100% Automatic</span>
                         </div>
                         <p class="text-[10px] text-gray-300 leading-relaxed">
-                            Connect Target Gym official WhatsApp via QR code scan with <strong>zero monthly fees</strong>!
+                            Official background WhatsApp gateway for automated payment receipts, renewal alerts &amp; welcome messages.
                         </p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">idInstance (Instance ID)</label>
-                                <input type="text" id="gym-greenapi-instance" placeholder="e.g. 1101823456" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">idInstance</label>
+                                <input type="text" id="gym-greenapi-instance" placeholder="e.g. 1101823456" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-brand-400">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">apiTokenInstance (API Token)</label>
-                                <input type="password" id="gym-greenapi-token" placeholder="e.g. d8f4b679..." class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
+                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">apiTokenInstance</label>
+                                <input type="password" id="gym-greenapi-token" placeholder="Enter API Token" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-brand-400">
                             </div>
                         </div>
-                        <p class="text-[9px] text-emerald-300">💡 <strong>Free Setup (1 Min):</strong> Go to <a href="https://green-api.com" target="_blank" class="underline font-bold text-white">green-api.com</a>, choose Developer Plan (FREE), scan QR code with WhatsApp, and paste credentials above.</p>
-                    </div>
-
-                    <!-- 3. ULTRAMSG GATEWAY -->
-                    <div id="gateway-fields-ultramsg" class="space-y-3 p-4 bg-purple-950/20 rounded-2xl border border-purple-500/40 hidden-view">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-black text-purple-400 flex items-center gap-1.5">
-                                <i class="fab fa-whatsapp text-purple-400 text-sm"></i> UltraMsg WhatsApp Cloud Gateway
-                            </span>
-                            <span class="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full font-bold">QR Scan</span>
-                        </div>
-                        <p class="text-[10px] text-gray-300 leading-relaxed">
-                            Connect via <strong>ultramsg.com</strong> ($39/mo or Free Trial).
-                        </p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">UltraMsg Instance ID</label>
-                                <input type="text" id="gym-ultramsg-instance" placeholder="e.g. instance105432" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-gray-400 mb-1 font-bold">UltraMsg Token</label>
-                                <input type="password" id="gym-ultramsg-token" placeholder="e.g. a7bc89d..." class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono">
-                            </div>
-                        </div>
-                        <p class="text-[9px] text-purple-300">💡 <strong>Setup:</strong> Log in to <a href="https://ultramsg.com" target="_blank" class="underline font-bold text-white">ultramsg.com</a>, scan QR code, and paste your Instance ID &amp; Token above.</p>
                     </div>
 
                     <!-- Instant Test Tool for Gym Owner -->
@@ -1113,310 +1056,9 @@
         </div>
     </div>
 
-    <!-- 5. IN-GYM SUPPLEMENT & SHAKE BAR POS STORE MANAGER MODAL -->
-    <div id="store-manager-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-dark-200 rounded-2xl w-full max-w-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh]">
-            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-xl shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-xs"><i class="fas fa-blender"></i></div>
-                    <div>
-                        <h3 class="text-sm font-bold text-white">In-Gym Shake & Supplement Bar (POS)</h3>
-                        <p class="text-[10px] text-gray-400">Manage shakes, scoops, snacks, prices & gym desk menu</p>
-                    </div>
-                </div>
-                <button onclick="closeStoreManagerModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-            </div>
 
-            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
-                <!-- Add New Item Form -->
-                <div class="bg-dark-100 p-4 rounded-xl border border-gray-800 space-y-3">
-                    <h4 class="text-xs uppercase font-bold text-brand-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-plus-circle"></i> Add New Bar Item / Product</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] text-gray-400 mb-1">Item Name</label>
-                            <input type="text" id="store-new-name" placeholder="e.g. Creatine Monohydrate Scoop (5g)" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-brand-400">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Category</label>
-                            <select id="store-new-cat" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white">
-                                <option value="shakes">🥤 Shakes & Drinks</option>
-                                <option value="snacks">🍫 Snacks & Fuel</option>
-                                <option value="gear">🎒 Lifting Gear</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Price (₹)</label>
-                            <input type="number" id="store-new-price" placeholder="40" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-brand-400">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] text-gray-400 mb-1">Description / Nutrition Info</label>
-                            <input type="text" id="store-new-desc" placeholder="e.g. Pure micronized Creapure for strength & ATP power" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-brand-400">
-                        </div>
-                    </div>
-                    <button onclick="addNewStoreItem()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-2.5 rounded-lg text-xs transition-colors shadow-sm"><i class="fas fa-plus mr-1"></i> Add Item to Gym Bar Menu</button>
-                </div>
 
-                <!-- Active Items List -->
-                <div>
-                    <div class="flex justify-between items-center mb-2.5">
-                        <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-th-list"></i> Current Menu Items (<span id="store-items-count">0</span>)</h4>
-                        <button onclick="resetStoreItemsDefault()" class="text-[11px] text-gray-400 hover:text-white underline"><i class="fas fa-undo mr-1"></i> Reset to Defaults</button>
-                    </div>
-                    <div id="store-items-manager-container" class="space-y-2">
-                        <!-- JS populated -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- 6. LIVE GYM CROWD DENSITY CONTROL MODAL -->
-    <div id="crowd-control-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-dark-200 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-xl shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-red-900/40 text-red-400 border border-red-500/30 flex items-center justify-center font-bold text-xs"><i class="fas fa-fire-alt"></i></div>
-                    <div>
-                        <h3 class="text-sm font-bold text-white">Live Gym Crowd Control</h3>
-                        <p class="text-[10px] text-gray-400">Control live rush meter badge shown to all members</p>
-                    </div>
-                </div>
-                <button onclick="closeCrowdControlModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-            </div>
-
-            <div class="p-5 space-y-4">
-                <p class="text-xs text-gray-300">Set the gym floor density level or let the system calculate it automatically:</p>
-
-                <div class="space-y-2.5">
-                    <button onclick="setCrowdDensityOverride('auto')" class="w-full p-3.5 rounded-xl border border-gray-700 hover:border-brand-400 bg-dark-100 flex items-center justify-between transition-all text-left">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">🤖</span>
-                            <div>
-                                <h5 class="text-xs font-bold text-white">Auto (Time & Check-Ins Based)</h5>
-                                <p class="text-[10px] text-gray-400">Calculates automatically from peak gym hours schedule</p>
-                            </div>
-                        </div>
-                        <span id="crowd-sel-auto" class="text-brand-400 text-sm hidden-view"><i class="fas fa-check-circle"></i></span>
-                    </button>
-
-                    <button onclick="setCrowdDensityOverride('quiet')" class="w-full p-3.5 rounded-xl border border-gray-700 hover:border-green-400 bg-dark-100 flex items-center justify-between transition-all text-left">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">🟢</span>
-                            <div>
-                                <h5 class="text-xs font-bold text-green-400">Quiet (5 – 10 Members)</h5>
-                                <p class="text-[10px] text-gray-400">Squat racks and dumbbells free, peaceful time to train</p>
-                            </div>
-                        </div>
-                        <span id="crowd-sel-quiet" class="text-green-400 text-sm hidden-view"><i class="fas fa-check-circle"></i></span>
-                    </button>
-
-                    <button onclick="setCrowdDensityOverride('moderate')" class="w-full p-3.5 rounded-xl border border-gray-700 hover:border-amber-400 bg-dark-100 flex items-center justify-between transition-all text-left">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">🟡</span>
-                            <div>
-                                <h5 class="text-xs font-bold text-amber-400">Moderate (15 – 25 Members)</h5>
-                                <p class="text-[10px] text-gray-400">Steady workout flow with active, energetic gym atmosphere</p>
-                            </div>
-                        </div>
-                        <span id="crowd-sel-moderate" class="text-amber-400 text-sm hidden-view"><i class="fas fa-check-circle"></i></span>
-                    </button>
-
-                    <button onclick="setCrowdDensityOverride('rush')" class="w-full p-3.5 rounded-xl border border-gray-700 hover:border-red-400 bg-dark-100 flex items-center justify-between transition-all text-left">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">🔴</span>
-                            <div>
-                                <h5 class="text-xs font-bold text-red-400">Peak Rush (30+ Members)</h5>
-                                <p class="text-[10px] text-gray-400">Floor is packed! High intensity, machines are in high demand</p>
-                            </div>
-                        </div>
-                        <span id="crowd-sel-rush" class="text-red-400 text-sm hidden-view"><i class="fas fa-check-circle"></i></span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 7. STUDIO GROUP CLASSES MANAGER MODAL -->
-    <div id="class-manager-modal" class="fixed inset-0 bg-black/80 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-dark-200 rounded-2xl w-full max-w-3xl border border-gray-700 shadow-2xl flex flex-col max-h-[92vh]">
-            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-xl shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-xs"><i class="fas fa-calendar-alt"></i></div>
-                    <div>
-                        <h3 class="text-sm font-bold text-white">Studio Group Class Schedule Manager</h3>
-                        <p class="text-[10px] text-gray-400">Add, edit, or customize weekly group classes for all gym members</p>
-                    </div>
-                </div>
-                <button onclick="closeClassManagerModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-            </div>
-
-            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
-                <!-- Add New Class Form -->
-                <div class="bg-dark-100 p-4 rounded-xl border border-gray-800 space-y-3">
-                    <h4 class="text-xs uppercase font-bold text-indigo-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-plus-circle"></i> Add New Studio Class</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Day of Week</label>
-                            <select id="class-new-day" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white">
-                                <option value="Monday">Monday</option>
-                                <option value="Tuesday">Tuesday</option>
-                                <option value="Wednesday">Wednesday</option>
-                                <option value="Thursday">Thursday</option>
-                                <option value="Friday">Friday</option>
-                                <option value="Saturday">Saturday</option>
-                                <option value="Sunday">Sunday</option>
-                            </select>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] text-gray-400 mb-1">Class Name</label>
-                            <input type="text" id="class-new-name" placeholder="e.g. Sunrise Yoga & Spinal Mobility" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Time Slot</label>
-                            <input type="text" id="class-new-time" placeholder="e.g. 7:00 AM – 7:45 AM" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Trainer / Instructor</label>
-                            <input type="text" id="class-new-coach" placeholder="e.g. Coach Priya" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-indigo-400">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Available Spots</label>
-                            <input type="number" id="class-new-spots" placeholder="6" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-indigo-400">
-                        </div>
-                    </div>
-                    <button onclick="addNewStudioClass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition-colors shadow-sm cursor-pointer"><i class="fas fa-plus mr-1"></i> Add Class to Weekly Schedule</button>
-                </div>
-
-                <!-- Active Classes List -->
-                <div>
-                    <div class="flex justify-between items-center mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-week"></i> Weekly Schedule (<span id="classes-manager-count">0</span>)</h4>
-                            <select id="classes-filter-day" onchange="renderClassManagerList()" class="bg-dark-300 border border-gray-700 text-gray-300 rounded px-2 py-0.5 text-xs">
-                                <option value="all">All Days</option>
-                                <option value="Monday">Monday</option>
-                                <option value="Tuesday">Tuesday</option>
-                                <option value="Wednesday">Wednesday</option>
-                                <option value="Thursday">Thursday</option>
-                                <option value="Friday">Friday</option>
-                                <option value="Saturday">Saturday</option>
-                                <option value="Sunday">Sunday</option>
-                            </select>
-                        </div>
-                        <button onclick="resetClassesDefault()" class="text-[11px] text-gray-400 hover:text-white underline"><i class="fas fa-undo mr-1"></i> Reset to Default Schedule</button>
-                    </div>
-                    <div id="classes-manager-container" class="space-y-2">
-                        <!-- JS populated -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 8. DAILY DESK CASHBOOK (KHATA) MODAL -->
-    <div id="cash-register-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-dark-200 rounded-3xl w-full max-w-3xl border border-green-500/40 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-            <!-- Modal Header -->
-            <div class="p-4 border-b border-gray-800 bg-dark-100 flex justify-between items-center rounded-t-3xl shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-green-500/20 text-green-400 border border-green-500/40 flex items-center justify-center text-base shadow-sm">
-                        <i class="fas fa-cash-register"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-black text-white flex items-center gap-1.5">
-                            Front Desk Cashbook (Khata) <span class="text-[9px] bg-green-500/20 text-green-300 border border-green-500/40 px-1.5 py-0.2 rounded font-extrabold uppercase">Daily Register</span>
-                        </h3>
-                        <p class="text-[10px] text-gray-400">Track collections, petty cash expenses, and net drawer balance</p>
-                    </div>
-                </div>
-                <button onclick="closeCashRegisterModal()" class="text-gray-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fas fa-times"></i></button>
-            </div>
-
-            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar text-left">
-                <!-- 3 Top Balance Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div class="bg-dark-100 p-4 rounded-2xl border border-green-500/30">
-                        <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Today's Collections</span>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <span class="text-2xl font-black text-green-400 font-mono" id="cashbook-total-inflow">₹0</span>
-                        </div>
-                        <p class="text-[10px] text-gray-400 mt-0.5" id="cashbook-inflow-sub">Cash: ₹0 • UPI: ₹0</p>
-                    </div>
-
-                    <div class="bg-dark-100 p-4 rounded-2xl border border-red-500/30">
-                        <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Petty Cash Expenses</span>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <span class="text-2xl font-black text-red-400 font-mono" id="cashbook-total-outflow">₹0</span>
-                        </div>
-                        <p class="text-[10px] text-gray-400 mt-0.5" id="cashbook-outflow-sub">0 recorded expenses</p>
-                    </div>
-
-                    <div class="bg-dark-100 p-4 rounded-2xl border border-amber-500/40 bg-gradient-to-br from-dark-100 to-amber-950/20">
-                        <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider block">Net In Desk Drawer</span>
-                        <div class="flex items-baseline gap-1 mt-1">
-                            <span class="text-2xl font-black text-white font-mono" id="cashbook-drawer-net">₹0</span>
-                        </div>
-                        <p class="text-[10px] text-amber-300 font-bold mt-0.5">Physical Cash Balance</p>
-                    </div>
-                </div>
-
-                <!-- Add Expense Form -->
-                <div class="bg-dark-100 p-4 rounded-2xl border border-gray-800 space-y-3">
-                    <h4 class="text-xs uppercase font-bold text-red-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-minus-circle"></i> Log Desk Petty Expense</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Expense Category</label>
-                            <select id="expense-category-input" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white">
-                                <option value="Diesel / Generator">⛽ Diesel / Generator</option>
-                                <option value="Water Bottles / Jars">💧 Water Jars / Drinking Water</option>
-                                <option value="Cleaning Supplies">🧹 Cleaning / Sanitation</option>
-                                <option value="Equipment Repairs">🔧 Machine Maintenance & Oil</option>
-                                <option value="Staff Refreshments">☕ Staff Tea / Snacks</option>
-                                <option value="Trainer Advance">💵 Trainer Petty Advance</option>
-                                <option value="Miscellaneous">📦 Misc Desk Expense</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Amount (₹)</label>
-                            <input type="number" id="expense-amount-input" placeholder="e.g. 500" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white font-mono focus:border-red-400">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Payment Mode</label>
-                            <select id="expense-mode-input" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white">
-                                <option value="Cash">Cash (from drawer)</option>
-                                <option value="UPI">UPI / Online</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-gray-400 mb-1">Brief Note</label>
-                            <input type="text" id="expense-note-input" placeholder="e.g. 10L diesel for genset" class="w-full bg-dark-300 border border-gray-700 rounded-lg p-2 text-xs text-white focus:border-red-400">
-                        </div>
-                    </div>
-                    <button onclick="addCashbookExpense()" class="w-full bg-red-600/80 hover:bg-red-600 text-white font-bold py-2.5 rounded-lg text-xs transition-colors shadow-sm cursor-pointer"><i class="fas fa-plus mr-1"></i> Record Desk Expense</button>
-                </div>
-
-                <!-- Today's Transaction Ledger -->
-                <div>
-                    <div class="flex justify-between items-center mb-2.5">
-                        <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1.5"><i class="fas fa-list-alt"></i> Today's Cashbook Entries (<span id="cashbook-entries-count">0</span>)</h4>
-                        <button onclick="clearTodayCashbookLedger()" class="text-[11px] text-gray-400 hover:text-white underline"><i class="fas fa-trash-alt mr-1"></i> Reset Ledger</button>
-                    </div>
-                    <div id="cashbook-ledger-container" class="space-y-2">
-                        <!-- JS Populated -->
-                    </div>
-                </div>
-
-                <!-- 1-Click WhatsApp Daily Closing Summary to Gym Owner -->
-                <button type="button" onclick="sendDailyCashClosingWhatsApp()" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-extrabold py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-green-600/25 flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fab fa-whatsapp text-base"></i> Send Daily Desk Closing Audit to Gym Owner (WhatsApp)
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- 9. TRAINER PT COMMISSION & PAYOUTS MODAL -->
     <div id="pt-commission-modal" class="fixed inset-0 bg-black/85 z-50 hidden-view flex items-center justify-center p-4 backdrop-blur-sm">
@@ -2087,6 +1729,9 @@
                             <div class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                                 ${cTiming === 'morning' ? '<span class="text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">🌅 Morning</span>' : '<span class="text-indigo-400 bg-indigo-500/10 px-1.5 py-0.2 rounded border border-indigo-500/20">🌙 Evening</span>'}
                                 ${cPhone ? `<span class="text-gray-300 font-mono"><i class="fas fa-phone-alt text-[9px] text-brand-400 mr-1"></i>${cPhone}</span>` : '<span class="text-gray-500 italic">No phone</span>'}
+                                <button type="button" onclick="copyMemberIdToClipboard('${c.id}')" title="Click to copy User ID to share with member" class="text-[10px] text-brand-300 bg-brand-400/10 hover:bg-brand-400/20 px-1.5 py-0.2 rounded border border-brand-400/30 font-mono transition-all flex items-center gap-1 cursor-pointer">
+                                    <i class="fas fa-id-badge text-[9px] text-brand-400"></i> ID: ${c.id.length > 13 ? c.id.substring(0, 11) + '...' : c.id} <i class="fas fa-copy text-[8px] opacity-70"></i>
+                                </button>
                             </div>
                         </td>
                         <td class="p-3.5 border-b border-gray-800">
@@ -2254,6 +1899,10 @@
             editingClientId = id;
             
             document.getElementById('edit-client-name').textContent = client.name;
+            const copyIdPill = document.getElementById('edit-client-id-pill');
+            if (copyIdPill) {
+                copyIdPill.textContent = `ID: ${id.length > 13 ? id.substring(0, 11) + '...' : id}`;
+            }
             
             // Build schedule editor
             const schedHTML = days.map(d => `
@@ -2758,7 +2407,7 @@
             gymUpi: '',
             defaultFee: 1500,
             autoPilotEnabled: true,
-            gatewayProvider: 'meta',
+            gatewayProvider: 'greenapi',
             greenApiInstance: '',
             greenApiToken: '',
             metaPhoneId: '',
@@ -2768,21 +2417,7 @@
         };
 
         function handleAutoGatewayChange(val) {
-            const greenEl = document.getElementById('gateway-fields-greenapi');
-            const metaEl = document.getElementById('gateway-fields-meta');
-            const ultraEl = document.getElementById('gateway-fields-ultramsg');
-
-            if (greenEl) greenEl.classList.add('hidden-view');
-            if (metaEl) metaEl.classList.add('hidden-view');
-            if (ultraEl) ultraEl.classList.add('hidden-view');
-
-            if (val === 'greenapi') {
-                if (greenEl) greenEl.classList.remove('hidden-view');
-            } else if (val === 'ultramsg') {
-                if (ultraEl) ultraEl.classList.remove('hidden-view');
-            } else {
-                if (metaEl) metaEl.classList.remove('hidden-view');
-            }
+            // Internal provider handler
         }
 
         function initGymBrandingSync() {
@@ -2819,28 +2454,11 @@
             if (document.getElementById('gym-autopilot-toggle')) {
                 document.getElementById('gym-autopilot-toggle').checked = gymBranding.autoPilotEnabled !== false;
             }
-            if (document.getElementById('gym-gateway-provider')) {
-                const prov = gymBranding.gatewayProvider || 'meta';
-                document.getElementById('gym-gateway-provider').value = prov;
-                handleAutoGatewayChange(prov);
-            }
             if (document.getElementById('gym-greenapi-instance')) {
-                document.getElementById('gym-greenapi-instance').value = gymBranding.greenApiInstance || '';
+                document.getElementById('gym-greenapi-instance').value = gymBranding.greenApiInstance || gymBranding.autoWhatsAppInstance || '';
             }
             if (document.getElementById('gym-greenapi-token')) {
-                document.getElementById('gym-greenapi-token').value = gymBranding.greenApiToken || '';
-            }
-            if (document.getElementById('gym-meta-phone-id')) {
-                document.getElementById('gym-meta-phone-id').value = gymBranding.metaPhoneId || '';
-            }
-            if (document.getElementById('gym-meta-token')) {
-                document.getElementById('gym-meta-token').value = gymBranding.metaAccessToken || '';
-            }
-            if (document.getElementById('gym-ultramsg-instance')) {
-                document.getElementById('gym-ultramsg-instance').value = gymBranding.autoWhatsAppInstance || '';
-            }
-            if (document.getElementById('gym-ultramsg-token')) {
-                document.getElementById('gym-ultramsg-token').value = gymBranding.autoWhatsAppToken || '';
+                document.getElementById('gym-greenapi-token').value = gymBranding.greenApiToken || gymBranding.autoWhatsAppToken || '';
             }
 
             updateBrandingPreview();
@@ -2876,26 +2494,14 @@
             if (document.getElementById('gym-autopilot-toggle')) {
                 gymBranding.autoPilotEnabled = document.getElementById('gym-autopilot-toggle').checked;
             }
-            if (document.getElementById('gym-gateway-provider')) {
-                gymBranding.gatewayProvider = document.getElementById('gym-gateway-provider').value;
-            }
+            gymBranding.gatewayProvider = 'greenapi';
             if (document.getElementById('gym-greenapi-instance')) {
                 gymBranding.greenApiInstance = document.getElementById('gym-greenapi-instance').value.trim();
+                gymBranding.autoWhatsAppInstance = gymBranding.greenApiInstance;
             }
             if (document.getElementById('gym-greenapi-token')) {
                 gymBranding.greenApiToken = document.getElementById('gym-greenapi-token').value.trim();
-            }
-            if (document.getElementById('gym-meta-phone-id')) {
-                gymBranding.metaPhoneId = document.getElementById('gym-meta-phone-id').value.trim();
-            }
-            if (document.getElementById('gym-meta-token')) {
-                gymBranding.metaAccessToken = document.getElementById('gym-meta-token').value.trim();
-            }
-            if (document.getElementById('gym-ultramsg-instance')) {
-                gymBranding.autoWhatsAppInstance = document.getElementById('gym-ultramsg-instance').value.trim();
-            }
-            if (document.getElementById('gym-ultramsg-token')) {
-                gymBranding.autoWhatsAppToken = document.getElementById('gym-ultramsg-token').value.trim();
+                gymBranding.autoWhatsAppToken = gymBranding.greenApiToken;
             }
 
             localStorage.setItem('gymsolo_branding', JSON.stringify(gymBranding));
@@ -3505,110 +3111,37 @@
                          `🧾 *Instant Digital Receipt:* Once paid, reply *PAID* or share your payment screenshot to instantly generate your digital receipt.\n\n` +
                          `Have an awesome session today! 🚀💪\n— *${gymName} Desk*`;
 
-            const provider = gymBranding.gatewayProvider || 'meta';
-
-            // 1. Green-API WhatsApp Cloud Gateway (100% FREE Plan — 1-Min QR Scan)
-            if (provider === 'greenapi') {
-                const instance = gymBranding.greenApiInstance || gymBranding.autoWhatsAppInstance;
-                const token = gymBranding.greenApiToken || gymBranding.autoWhatsAppToken;
-                if (instance && token) {
-                    try {
-                        const cleanInst = instance.replace(/\D/g, '');
-                        const endpoint = `https://api.green-api.com/waInstance${cleanInst}/sendMessage/${token}`;
-                        const res = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chatId: `${cleanPhone}@c.us`,
-                                message: body
-                            })
-                        });
-                        const data = await res.json();
-                        if (data && (data.idMessage || data.status === 'success' || data.id)) {
-                            return { success: true, mode: 'Green-API (100% Free Plan)' };
-                        }
-                        if (data && (data.error || data.message)) {
-                            return { success: false, error: data.error || data.message };
-                        }
-                        return { success: true, mode: 'Green-API Cloud Gateway' };
-                    } catch(e) {
-                        return { success: false, error: e.message };
-                    }
-                }
-                return { 
-                    success: false, 
-                    error: 'Green-API credentials not configured. Please enter your idInstance & apiTokenInstance.' 
-                };
-            }
-
-            // 2. Meta Official WhatsApp Cloud API (1,000 Free Messages/Month)
-            if (provider === 'meta') {
-                if (gymBranding.metaPhoneId && gymBranding.metaAccessToken) {
-                    try {
-                        const endpoint = `https://graph.facebook.com/v19.0/${gymBranding.metaPhoneId}/messages`;
-                        const res = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${gymBranding.metaAccessToken}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                messaging_product: 'whatsapp',
-                                recipient_type: 'individual',
-                                to: cleanPhone,
-                                type: 'text',
-                                text: { preview_url: false, body: body }
-                            })
-                        });
-                        const data = await res.json();
-                        if (data && (data.messages || data.id)) {
-                            return { success: true, mode: 'Meta Official Cloud API' };
-                        }
-                        if (data && data.error) {
-                            return { success: false, error: data.error.message || JSON.stringify(data.error) };
-                        }
-                        return { success: true, mode: 'Meta WhatsApp' };
-                    } catch(e) {
-                        return { success: false, error: e.message };
-                    }
-                }
-                return { 
-                    success: false, 
-                    error: 'Meta Cloud API credentials not configured. Please enter Phone Number ID & Access Token.' 
-                };
-            }
-
-            // 3. UltraMsg WhatsApp Cloud Gateway
-            if (gymBranding.autoWhatsAppInstance && gymBranding.autoWhatsAppToken) {
+            // WhatsApp Cloud Gateway
+            const instance = gymBranding.greenApiInstance || gymBranding.autoWhatsAppInstance;
+            const token = gymBranding.greenApiToken || gymBranding.autoWhatsAppToken;
+            if (instance && token) {
                 try {
-                    const endpoint = `https://api.ultramsg.com/${gymBranding.autoWhatsAppInstance}/messages/chat`;
-                    const params = new URLSearchParams();
-                    params.append('token', gymBranding.autoWhatsAppToken);
-                    params.append('to', cleanPhone);
-                    params.append('body', body);
-
+                    const cleanInst = instance.replace(/\D/g, '');
+                    const endpoint = `https://api.green-api.com/waInstance${cleanInst}/sendMessage/${token}`;
                     const res = await fetch(endpoint, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: params
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId: `${cleanPhone}@c.us`,
+                            message: body
+                        })
                     });
                     const data = await res.json();
-                    if (data && (data.sent === 'true' || data.id || data.status === 'success')) {
-                        return { success: true, mode: 'UltraMsg Cloud API' };
+                    if (data && (data.idMessage || data.status === 'success' || data.id)) {
+                        return { success: true, mode: 'WhatsApp Cloud' };
                     }
                     if (data && (data.error || data.message)) {
                         return { success: false, error: data.error || data.message };
                     }
-                    return { success: true, mode: 'UltraMsg Gateway' };
+                    return { success: true, mode: 'WhatsApp Cloud' };
                 } catch(e) {
-                    console.error('UltraMsg error:', e);
                     return { success: false, error: e.message };
                 }
             }
 
             return { 
                 success: false, 
-                error: 'Gateway credentials not configured. Please open Gym Branding settings.' 
+                error: 'WhatsApp Gateway not configured. Please enter your idInstance and apiTokenInstance in Gym Branding.' 
             };
         }
 
@@ -3738,6 +3271,25 @@
             if (toast) toast.classList.add('translate-y-24', 'opacity-0');
         }
 
+        function copyMemberIdToClipboard(id) {
+            if (!id) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(id).then(() => {
+                    showAutoPilotToast('Member ID Copied! 📋', `User ID: ${id}`);
+                }).catch(() => {
+                    prompt('Copy Member ID:', id);
+                });
+            } else {
+                prompt('Copy Member ID:', id);
+            }
+        }
+
+        function copyCurrentEditingClientId() {
+            if (editingClientId) {
+                copyMemberIdToClipboard(editingClientId);
+            }
+        }
+
         async function sendLiveTestAutoPilotWhatsApp() {
             const phoneInput = document.getElementById('gym-test-phone-input');
             const feedback = document.getElementById('test-dispatch-feedback');
@@ -3746,47 +3298,23 @@
                 return;
             }
             const phone = phoneInput.value.trim();
-            const prov = document.getElementById('gym-gateway-provider')?.value || gymBranding.gatewayProvider || 'meta';
-            gymBranding.gatewayProvider = prov;
 
             // Temp sync inputs
             if (document.getElementById('gym-greenapi-instance')) gymBranding.greenApiInstance = document.getElementById('gym-greenapi-instance').value.trim();
             if (document.getElementById('gym-greenapi-token')) gymBranding.greenApiToken = document.getElementById('gym-greenapi-token').value.trim();
-            if (document.getElementById('gym-meta-phone-id')) gymBranding.metaPhoneId = document.getElementById('gym-meta-phone-id').value.trim();
-            if (document.getElementById('gym-meta-token')) gymBranding.metaAccessToken = document.getElementById('gym-meta-token').value.trim();
-            if (document.getElementById('gym-ultramsg-instance')) gymBranding.autoWhatsAppInstance = document.getElementById('gym-ultramsg-instance').value.trim();
-            if (document.getElementById('gym-ultramsg-token')) gymBranding.autoWhatsAppToken = document.getElementById('gym-ultramsg-token').value.trim();
 
-            if (prov === 'greenapi' && (!gymBranding.greenApiInstance || !gymBranding.greenApiToken)) {
+            if (!gymBranding.greenApiInstance || !gymBranding.greenApiToken) {
                 if (feedback) {
                     feedback.className = 'text-[10px] block mt-1 font-mono text-red-400';
-                    feedback.textContent = '❌ Please enter your Green-API idInstance and apiTokenInstance above first!';
+                    feedback.textContent = '❌ Please enter your idInstance and apiTokenInstance above first!';
                 }
-                alert('Please enter your Green-API idInstance and apiTokenInstance first (from green-api.com).');
-                return;
-            }
-
-            if (prov === 'meta' && (!gymBranding.metaPhoneId || !gymBranding.metaAccessToken)) {
-                if (feedback) {
-                    feedback.className = 'text-[10px] block mt-1 font-mono text-red-400';
-                    feedback.textContent = '❌ Please enter your Meta Phone Number ID and Access Token above first!';
-                }
-                alert('Please enter your Meta Phone Number ID and Access Token first.');
-                return;
-            }
-
-            if (prov === 'ultramsg' && (!gymBranding.autoWhatsAppInstance || !gymBranding.autoWhatsAppToken)) {
-                if (feedback) {
-                    feedback.className = 'text-[10px] block mt-1 font-mono text-red-400';
-                    feedback.textContent = '❌ Please enter your UltraMsg Instance ID and Token above first!';
-                }
-                alert('Please enter your UltraMsg Instance ID and Token above first.');
+                alert('Please enter your idInstance and apiTokenInstance first.');
                 return;
             }
 
             if (feedback) {
                 feedback.className = 'text-[10px] block mt-1 font-mono text-amber-400';
-                feedback.textContent = `⏳ Dispatching 100% automated background test via ${prov.toUpperCase()}...`;
+                feedback.textContent = '⏳ Dispatching 100% automated background test message...';
             }
 
             const dummyClient = {
@@ -3799,7 +3327,7 @@
             if (res.success) {
                 if (feedback) {
                     feedback.className = 'text-[10px] block mt-1 font-mono text-emerald-400';
-                    feedback.textContent = `✅ Success! WhatsApp message sent via ${res.mode} directly to ${phone}. Check your phone!`;
+                    feedback.textContent = `✅ Success! WhatsApp message delivered directly to ${phone}. Check your phone!`;
                 }
                 recordAutoPilotAuditEntry(dummyClient, 2, phone, res.mode);
                 showAutoPilotToast('Live Auto-Pilot Test Sent', `Delivered directly to ${phone}!`);
@@ -4407,7 +3935,8 @@
                     if (doc.exists && Array.isArray(doc.data().items)) {
                         storeCatalog = doc.data().items;
                         localStorage.setItem('gymsolo_supplements_catalog', JSON.stringify(storeCatalog));
-                        if (!document.getElementById('store-manager-modal').classList.contains('hidden-view')) {
+                        const smModal = document.getElementById('store-manager-modal');
+                        if (smModal && !smModal.classList.contains('hidden-view')) {
                             renderStoreManagerList();
                         }
                     }
@@ -4417,11 +3946,13 @@
 
         function openStoreManagerModal() {
             renderStoreManagerList();
-            document.getElementById('store-manager-modal').classList.remove('hidden-view');
+            const smModal = document.getElementById('store-manager-modal');
+            if (smModal) smModal.classList.remove('hidden-view');
         }
 
         function closeStoreManagerModal() {
-            document.getElementById('store-manager-modal').classList.add('hidden-view');
+            const smModal = document.getElementById('store-manager-modal');
+            if (smModal) smModal.classList.add('hidden-view');
         }
 
         function renderStoreManagerList() {
@@ -4541,11 +4072,13 @@
                     else el.classList.add('hidden-view');
                 }
             });
-            document.getElementById('crowd-control-modal').classList.remove('hidden-view');
+            const ccModal = document.getElementById('crowd-control-modal');
+            if (ccModal) ccModal.classList.remove('hidden-view');
         }
 
         function closeCrowdControlModal() {
-            document.getElementById('crowd-control-modal').classList.add('hidden-view');
+            const ccModal = document.getElementById('crowd-control-modal');
+            if (ccModal) ccModal.classList.add('hidden-view');
         }
 
         function setCrowdDensityOverride(mode) {
@@ -4594,7 +4127,8 @@
                     if (doc.exists && Array.isArray(doc.data().classes)) {
                         studioClassesList = doc.data().classes;
                         localStorage.setItem('gym_studio_classes', JSON.stringify(studioClassesList));
-                        if (!document.getElementById('class-manager-modal').classList.contains('hidden-view')) {
+                        const cmModal = document.getElementById('class-manager-modal');
+                        if (cmModal && !cmModal.classList.contains('hidden-view')) {
                             renderClassManagerList();
                         }
                     }
@@ -4613,11 +4147,13 @@
 
         function openClassManagerModal() {
             renderClassManagerList();
-            document.getElementById('class-manager-modal').classList.remove('hidden-view');
+            const cmModal = document.getElementById('class-manager-modal');
+            if (cmModal) cmModal.classList.remove('hidden-view');
         }
 
         function closeClassManagerModal() {
-            document.getElementById('class-manager-modal').classList.add('hidden-view');
+            const cmModal = document.getElementById('class-manager-modal');
+            if (cmModal) cmModal.classList.add('hidden-view');
         }
 
         function renderClassManagerList() {
@@ -4743,11 +4279,13 @@
 
         function openCashRegisterModal() {
             renderCashbookUI();
-            document.getElementById('cash-register-modal').classList.remove('hidden-view');
+            const crModal = document.getElementById('cash-register-modal');
+            if (crModal) crModal.classList.remove('hidden-view');
         }
 
         function closeCashRegisterModal() {
-            document.getElementById('cash-register-modal').classList.add('hidden-view');
+            const crModal = document.getElementById('cash-register-modal');
+            if (crModal) crModal.classList.add('hidden-view');
         }
 
         function renderCashbookUI() {
