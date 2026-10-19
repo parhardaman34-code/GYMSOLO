@@ -502,6 +502,7 @@ function attachClientCloudListener() {
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+    initStepRulers();
     const savedState = localStorage.getItem('gymsolo_state');
     const todayStr = new Date().toDateString();
     
@@ -575,13 +576,213 @@ function selectWorkoutTiming(timing) {
     }
 }
 
+// --- INTERACTIVE HORIZONTAL SCROLL RULERS (STEP 1 & STEP 3) ---
+const stepRulerConfigs = {
+    height: {
+        trackId: 'height-ruler-track',
+        displayId: 'ob-height-display',
+        inputId: 'ob-height',
+        min: 120,
+        max: 220,
+        step: 1,
+        majorInterval: 5,
+        defaultVal: 175,
+        tickWidth: 16,
+        unit: 'cm'
+    },
+    weight: {
+        trackId: 'weight-ruler-track',
+        displayId: 'ob-weight-display',
+        inputId: 'ob-weight',
+        min: 40,
+        max: 160,
+        step: 1,
+        majorInterval: 5,
+        defaultVal: 75,
+        tickWidth: 16,
+        unit: 'kg'
+    },
+    targetKg: {
+        trackId: 'target-kg-ruler-track',
+        displayId: 'target-kg-display',
+        inputId: 'ob-kg-delta',
+        min: 1,
+        max: 30,
+        step: 1,
+        majorInterval: 5,
+        defaultVal: 5,
+        tickWidth: 18,
+        unit: 'KG'
+    }
+};
+
+let stepRulersInitialized = false;
+const rulerDebounceTimers = {};
+const rulerProgrammaticScroll = {};
+
+function initStepRulers() {
+    Object.keys(stepRulerConfigs).forEach(type => {
+        buildSingleStepRuler(type);
+    });
+    stepRulersInitialized = true;
+}
+
+function buildSingleStepRuler(type) {
+    const cfg = stepRulerConfigs[type];
+    if (!cfg) return;
+    const track = document.getElementById(cfg.trackId);
+    if (!track) return;
+
+    let currentVal = cfg.defaultVal;
+    const inputEl = document.getElementById(cfg.inputId);
+    if (inputEl && inputEl.value) {
+        currentVal = parseFloat(inputEl.value) || cfg.defaultVal;
+    } else if (appState.user) {
+        if (type === 'height' && appState.user.height) currentVal = appState.user.height;
+        if (type === 'weight' && appState.user.weight) currentVal = appState.user.weight;
+        if (type === 'targetKg' && appState.user.kgDelta) currentVal = appState.user.kgDelta;
+    }
+
+    currentVal = Math.max(cfg.min, Math.min(cfg.max, Math.round(currentVal)));
+
+    // Generate ticks
+    let ticksHtml = '';
+    for (let v = cfg.min; v <= cfg.max; v += cfg.step) {
+        const isMajor = (v % cfg.majorInterval === 0) || (v === cfg.min) || (v === cfg.max);
+        ticksHtml += `
+            <div class="ruler-tick ${isMajor ? 'major' : 'minor'}" data-val="${v}" onclick="setRulerValue('${type}', ${v}, true)">
+                <div class="ruler-tick-mark"></div>
+                <span class="ruler-tick-label">${isMajor ? v : '&nbsp;'}</span>
+            </div>
+        `;
+    }
+    track.innerHTML = ticksHtml;
+
+    // Scroll listener with live value calculation & haptic feedback
+    let lastReportedVal = currentVal;
+    track.addEventListener('scroll', () => {
+        if (rulerProgrammaticScroll[type]) return;
+
+        const rawVal = cfg.min + Math.round(track.scrollLeft / cfg.tickWidth);
+        const val = Math.max(cfg.min, Math.min(cfg.max, rawVal));
+
+        if (val !== lastReportedVal) {
+            lastReportedVal = val;
+            updateRulerValueUI(type, val, false);
+            if (window.navigator && typeof window.navigator.vibrate === 'function') {
+                try { window.navigator.vibrate(4); } catch(e){}
+            }
+        }
+
+        // Debounce smooth snap to exact tick mark
+        clearTimeout(rulerDebounceTimers[type]);
+        rulerDebounceTimers[type] = setTimeout(() => {
+            if (rulerProgrammaticScroll[type]) return;
+            const targetScroll = (val - cfg.min) * cfg.tickWidth;
+            if (Math.abs(track.scrollLeft - targetScroll) > 1) {
+                track.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            }
+        }, 120);
+    }, { passive: true });
+
+    // Initial position
+    updateRulerValueUI(type, currentVal, true);
+    setTimeout(() => {
+        syncRulerScroll(type);
+    }, 100);
+}
+
+function updateRulerValueUI(type, val, syncInput = true) {
+    const cfg = stepRulerConfigs[type];
+    if (!cfg) return;
+
+    const displayEl = document.getElementById(cfg.displayId);
+    if (displayEl) displayEl.textContent = val;
+
+    const inputEl = document.getElementById(cfg.inputId);
+    if (inputEl && syncInput) inputEl.value = val;
+
+    // Highlight active tick in track
+    const track = document.getElementById(cfg.trackId);
+    if (track) {
+        track.querySelectorAll('.ruler-tick.active').forEach(el => el.classList.remove('active'));
+        const activeTick = track.querySelector(`.ruler-tick[data-val="${val}"]`);
+        if (activeTick) activeTick.classList.add('active');
+    }
+
+    if (!appState.user) appState.user = {};
+
+    if (type === 'height') {
+        appState.user.height = val;
+    } else if (type === 'weight') {
+        appState.user.weight = val;
+        appState.user.startWeight = val;
+        const currWeightEl = document.getElementById('step3-curr-weight');
+        const fromWeightEl = document.getElementById('step3-from-weight');
+        if (currWeightEl) currWeightEl.textContent = `${val} kg`;
+        if (fromWeightEl) fromWeightEl.textContent = `${val} kg`;
+    } else if (type === 'targetKg') {
+        setKgDelta(val, false);
+    }
+}
+
+function setRulerValue(type, val, smooth = true) {
+    const cfg = stepRulerConfigs[type];
+    if (!cfg) return;
+    val = Math.max(cfg.min, Math.min(cfg.max, Math.round(val)));
+    updateRulerValueUI(type, val, true);
+
+    const track = document.getElementById(cfg.trackId);
+    if (track) {
+        rulerProgrammaticScroll[type] = true;
+        const targetScroll = (val - cfg.min) * cfg.tickWidth;
+        track.scrollTo({ left: targetScroll, behavior: smooth ? 'smooth' : 'auto' });
+        setTimeout(() => {
+            rulerProgrammaticScroll[type] = false;
+        }, smooth ? 300 : 50);
+    }
+}
+
+function adjustRulerValue(type, delta) {
+    const cfg = stepRulerConfigs[type];
+    if (!cfg) return;
+    const inputEl = document.getElementById(cfg.inputId);
+    const curr = (inputEl && parseFloat(inputEl.value)) || cfg.defaultVal;
+    setRulerValue(type, curr + delta, true);
+}
+
+function syncRulerScroll(type) {
+    const cfg = stepRulerConfigs[type];
+    if (!cfg) return;
+    const track = document.getElementById(cfg.trackId);
+    if (!track) return;
+    const inputEl = document.getElementById(cfg.inputId);
+    const val = (inputEl && parseFloat(inputEl.value)) || cfg.defaultVal;
+    const targetScroll = (val - cfg.min) * cfg.tickWidth;
+    track.scrollTo({ left: targetScroll, behavior: 'auto' });
+}
+
 function showStep(step) { 
+    if (!stepRulersInitialized) {
+        initStepRulers();
+    }
     document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active')); 
     const targetStep = document.getElementById(`step-${step}`);
     if (targetStep) targetStep.classList.add('active'); 
     const progressBar = document.getElementById('onboard-progress');
     if (progressBar) progressBar.style.width = `${(step / 7) * 100}%`; 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (step === 1) {
+        setTimeout(() => {
+            syncRulerScroll('height');
+            syncRulerScroll('weight');
+        }, 60);
+    } else if (step === 3) {
+        setTimeout(() => {
+            syncRulerScroll('targetKg');
+        }, 60);
+    }
 }
 
 function nextStep(step) {
@@ -718,7 +919,7 @@ function initStep3WeightPlan() {
     setKgDelta(currentDelta);
 }
 
-function setKgDelta(kg) {
+function setKgDelta(kg, syncRuler = true) {
     kg = Math.max(1, Math.min(60, parseFloat(kg) || 5));
     if (!appState.user) appState.user = {};
     appState.user.kgDelta = kg;
@@ -726,14 +927,21 @@ function setKgDelta(kg) {
     const deltaInput = document.getElementById('ob-kg-delta');
     if (deltaInput) deltaInput.value = kg;
 
+    const displayEl = document.getElementById('target-kg-display');
+    if (displayEl) displayEl.textContent = Math.round(kg);
+
     document.querySelectorAll('.kg-delta-btn').forEach(btn => {
         const btnKg = parseFloat(btn.getAttribute('data-kg'));
-        if (btnKg === kg) {
+        if (btnKg === Math.round(kg)) {
             btn.className = 'kg-delta-btn py-2.5 rounded-xl border-2 border-brand-400 bg-brand-900/40 text-brand-300 font-extrabold text-xs shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all';
         } else {
             btn.className = 'kg-delta-btn py-2.5 rounded-xl border border-gray-700 bg-dark-100 text-white font-bold text-xs hover:border-brand-400 transition-all';
         }
     });
+
+    if (syncRuler && typeof setRulerValue === 'function') {
+        setRulerValue('targetKg', Math.round(kg), true);
+    }
 
     updatePlanCalculations();
 }
@@ -1262,10 +1470,13 @@ async function loginAndRestoreUserData() {
         if (typeof db !== 'undefined') {
             // 1. Direct document ID lookup
             try {
-                const docSnap = await db.collection('clients').doc(rawId).get();
-                if (docSnap.exists) {
+                let docSnap = await db.collection('clients').doc(rawId).get();
+                if (!docSnap.exists && rawId.toLowerCase() !== rawId) {
+                    docSnap = await db.collection('clients').doc(rawId.toLowerCase()).get();
+                }
+                if (docSnap && docSnap.exists) {
                     const d = docSnap.data();
-                    if (!d.isRemoved && !d.loggedOut) {
+                    if (!d.isRemoved) { // Allow login even if loggedOut was previously set
                         matchedClientData = d;
                         matchedClientId = docSnap.id;
                     }
@@ -1274,22 +1485,44 @@ async function loginAndRestoreUserData() {
                 console.warn("Direct doc lookup error:", e);
             }
 
-            // 2. If not found, search by phone number or client collection query
+            // 2. Search by Phone number or collection query
+            const cleanDigits = rawId.replace(/\D/g, '');
+            if (!matchedClientData && cleanDigits.length >= 7) {
+                try {
+                    const phoneSnap = await db.collection('clients').where('phone', '==', cleanDigits).get();
+                    if (!phoneSnap.empty) {
+                        for (const doc of phoneSnap.docs) {
+                            const d = doc.data();
+                            if (!d.isRemoved) {
+                                matchedClientData = d;
+                                matchedClientId = doc.id;
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Phone query error:", e);
+                }
+            }
+
+            // 3. Fallback collection scan (handles case sensitivity, partial phone numbers, nested phone fields)
             if (!matchedClientData) {
-                const cleanDigits = rawId.replace(/\D/g, '');
                 try {
                     const snap = await db.collection('clients').get();
+                    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
                     snap.forEach(doc => {
                         if (matchedClientData) return;
                         const data = doc.data();
-                        if (data.isRemoved || data.loggedOut) return;
+                        if (data.isRemoved) return;
 
-                        const docPhone = (data.phone || (data.appState?.user?.phone) || '').replace(/\D/g, '');
-                        // Match ID, exact phone, or matching phone digits
+                        const docPhone = (data.phone || (data.appState?.user?.phone) || (data.rawState?.user?.phone) || '').replace(/\D/g, '');
+                        const docLast10 = docPhone.length >= 10 ? docPhone.slice(-10) : docPhone;
+
+                        // Match ID case-insensitively OR phone number
                         if (doc.id.toLowerCase() === rawId.toLowerCase()) {
                             matchedClientData = data;
                             matchedClientId = doc.id;
-                        } else if (cleanDigits.length >= 7 && (docPhone === cleanDigits || docPhone.endsWith(cleanDigits) || cleanDigits.endsWith(docPhone))) {
+                        } else if (last10.length >= 7 && (docPhone === cleanDigits || docLast10 === last10)) {
                             matchedClientData = data;
                             matchedClientId = doc.id;
                         }
@@ -1300,28 +1533,49 @@ async function loginAndRestoreUserData() {
             }
         }
 
-        // 3. Fallback: check localStorage backup
+        // 4. Fallback: check localStorage backups (offline or client storage)
         if (!matchedClientData) {
-            const localBackup = localStorage.getItem('gymsolo_backup_' + rawId) || 
-                                (rawId === localStorage.getItem('gymsolo_last_user_id') ? localStorage.getItem('gymsolo_state') : null);
-            if (localBackup) {
-                try {
-                    const parsedState = JSON.parse(localBackup);
-                    if (parsedState && (parsedState.onboarded || parsedState.user)) {
-                        matchedClientData = { appState: parsedState };
-                        matchedClientId = rawId;
-                    }
-                } catch (e) {}
+            const cleanDigits = rawId.replace(/\D/g, '');
+            const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && (k.startsWith('gymsolo_backup_') || k === 'gymsolo_state')) {
+                    try {
+                        const parsed = JSON.parse(localStorage.getItem(k));
+                        if (parsed && (parsed.onboarded || parsed.user)) {
+                            const savedId = k.replace('gymsolo_backup_', '');
+                            const savedPhone = (parsed.user?.phone || '').replace(/\D/g, '');
+                            const savedLast10 = savedPhone.length >= 10 ? savedPhone.slice(-10) : savedPhone;
+
+                            if (savedId.toLowerCase() === rawId.toLowerCase() || (last10.length >= 7 && savedLast10 === last10)) {
+                                matchedClientData = { appState: parsed };
+                                matchedClientId = (k === 'gymsolo_state') ? (localStorage.getItem('gymsolo_last_user_id') || rawId) : savedId;
+                                break;
+                            }
+                        }
+                    } catch (e) {}
+                }
             }
         }
 
-        if (matchedClientData && matchedClientData.appState) {
+        if (matchedClientData && (matchedClientData.appState || matchedClientData.rawState)) {
+            const restoredState = matchedClientData.appState || matchedClientData.rawState;
             // Restore client state
             clientId = matchedClientId || rawId;
             localStorage.setItem('gymsolo_client_id', clientId);
             localStorage.setItem('gymsolo_last_user_id', clientId);
-            appState = { ...appState, ...matchedClientData.appState, onboarded: true };
+            appState = { ...appState, ...restoredState, onboarded: true };
             localStorage.setItem('gymsolo_state', JSON.stringify(appState));
+
+            // Mark active in Firestore so remote logout does not trigger
+            if (typeof db !== 'undefined') {
+                db.collection('clients').doc(clientId).set({
+                    loggedOut: false,
+                    isRemoved: false,
+                    lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(() => {});
+            }
 
             // Attach new real-time listener for this client
             attachClientCloudListener();
@@ -1344,30 +1598,30 @@ async function loginAndRestoreUserData() {
                 const mainApp = document.getElementById('main-app');
                 if (mainApp) mainApp.classList.remove('hidden-view');
                 initMainApp();
-                showAppToast("Account Restored ✓", `Welcome back, ${appState.user?.name || 'Athlete'}! All workouts & diet ready.`);
+                showAppToast("Account Restored ✓", `Welcome back, ${appState.user?.name || 'Athlete'}! Your workouts and routines are ready.`);
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Restore & Log In</span>';
                 }
-            }, 700);
+            }, 600);
             return;
         }
 
         // Not found
         if (feedback) {
             feedback.className = 'bg-red-500/20 text-red-300 border border-red-500/40 p-3 rounded-xl text-xs font-semibold';
-            feedback.innerHTML = `<i class="fas fa-times-circle mr-1"></i> Account not found for "<b>${rawId}</b>". Please verify your User ID or phone number, or ask your trainer to look up your Member ID in the Admin Portal.`;
+            feedback.innerHTML = `<i class="fas fa-times-circle mr-1"></i> Account not found for "<b>${rawId}</b>". Please check your User ID or phone number, or ask your trainer to look up your Member ID in the Admin Portal.`;
             feedback.classList.remove('hidden-view');
         }
     } catch (err) {
         console.error("Login restore error:", err);
         if (feedback) {
             feedback.className = 'bg-red-500/20 text-red-300 border border-red-500/40 p-3 rounded-xl text-xs font-semibold';
-            feedback.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Sync error: ${err.message || 'Please try again'}`;
+            feedback.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Connection error: ${err.message || 'Please try again'}`;
             feedback.classList.remove('hidden-view');
         }
     } finally {
-        if (submitBtn && (!matchedClientData || !matchedClientData.appState)) {
+        if (submitBtn && (!matchedClientData || (!matchedClientData.appState && !matchedClientData.rawState))) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Restore & Log In</span>';
         }
@@ -1519,13 +1773,9 @@ function initMainApp(viewDay = null) {
         avatarEl.textContent = uName.charAt(0).toUpperCase() || 'U';
     }
 
-    // 2. Safe diet initialization
-    if (!appState.dietPlan || appState.dietPlan.length === 0 || !Array.isArray(appState.dietPlan)) { 
-        const uGoal = (appState.user && appState.user.goal) || 'Weight Loss';
-        const goalPlan = dietPlansDB[uGoal] || dietPlansDB['Weight Loss'];
-        if (goalPlan && goalPlan['Non-Veg']) {
-            appState.dietPlan = JSON.parse(JSON.stringify(goalPlan['Non-Veg'])); 
-        }
+    // 2. Safe diet initialization - do NOT preload fake diet, keep member's plan or empty array
+    if (!appState.dietPlan || !Array.isArray(appState.dietPlan)) { 
+        appState.dietPlan = [];
     }
     
     // 3. Dynamic Day Auto-Detection
@@ -3158,45 +3408,213 @@ function calculateCustomMeal() {
     document.getElementById('meal-calc-results').classList.remove('hidden-view');
 }
 
-function quickAddMeal() {
-    const staple = { meal: 'Snack (Staple)', name: 'Chicken & Rice', description: '150g chicken, 1 cup rice', macros: '35g P | 45g C | 5g F' };
-    appState.dietPlan.push(staple);
+// --- CUSTOM MEAL BUILDER & DIET PLAN SYSTEM ---
+function openAddCustomMealModal() {
+    const modal = document.getElementById('add-custom-meal-modal');
+    if (!modal) return;
+    const nameEl = document.getElementById('custom-meal-name');
+    const descEl = document.getElementById('custom-meal-desc');
+    const proEl = document.getElementById('custom-meal-pro');
+    const carbEl = document.getElementById('custom-meal-carb');
+    const fatEl = document.getElementById('custom-meal-fat');
+    if (nameEl) nameEl.value = '';
+    if (descEl) descEl.value = '';
+    if (proEl) proEl.value = '25';
+    if (carbEl) carbEl.value = '40';
+    if (fatEl) fatEl.value = '10';
+    autoCalculateCustomMealCalories();
+    modal.classList.remove('hidden-view');
+    setTimeout(() => nameEl?.focus(), 100);
+}
+
+function closeAddCustomMealModal() {
+    const modal = document.getElementById('add-custom-meal-modal');
+    if (modal) modal.classList.add('hidden-view');
+}
+
+function autoCalculateCustomMealCalories() {
+    const p = parseFloat(document.getElementById('custom-meal-pro')?.value) || 0;
+    const c = parseFloat(document.getElementById('custom-meal-carb')?.value) || 0;
+    const f = parseFloat(document.getElementById('custom-meal-fat')?.value) || 0;
+    const calsInput = document.getElementById('custom-meal-cals');
+    if (calsInput) {
+        calsInput.value = Math.round((p * 4) + (c * 4) + (f * 9));
+    }
+}
+
+function saveCustomMeal() {
+    const nameEl = document.getElementById('custom-meal-name');
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+        alert('Please enter a meal or dish name.');
+        nameEl?.focus();
+        return;
+    }
+
+    const slot = document.getElementById('custom-meal-slot')?.value || 'Meal';
+    const desc = document.getElementById('custom-meal-desc')?.value.trim() || '';
+    const pro = parseFloat(document.getElementById('custom-meal-pro')?.value) || 0;
+    const carb = parseFloat(document.getElementById('custom-meal-carb')?.value) || 0;
+    const fat = parseFloat(document.getElementById('custom-meal-fat')?.value) || 0;
+    let cals = parseFloat(document.getElementById('custom-meal-cals')?.value);
+    if (!cals || isNaN(cals)) {
+        cals = Math.round((pro * 4) + (carb * 4) + (fat * 9));
+    }
+
+    if (!Array.isArray(appState.dietPlan)) {
+        appState.dietPlan = [];
+    }
+
+    const mealObj = {
+        id: 'meal_' + Date.now(),
+        meal: slot,
+        time: slot,
+        name: name,
+        description: desc,
+        pro: pro,
+        carb: carb,
+        fat: fat,
+        cals: cals,
+        macros: `${pro}g P • ${carb}g C • ${fat}g F • ${cals} kcal`
+    };
+
+    appState.dietPlan.push(mealObj);
+    // Clear coach text override so user custom meals are shown
+    appState.dietText = '';
     saveStateToCloud();
     renderDietPlan();
+    closeAddCustomMealModal();
+    showAppToast("Meal Added! 🥗", `${name} added to your daily diet.`);
+}
+
+function deleteCustomMeal(index) {
+    if (!Array.isArray(appState.dietPlan) || !appState.dietPlan[index]) return;
+    const mealName = appState.dietPlan[index].name || 'this meal';
+    if (!confirm(`Delete "${mealName}" from your diet plan?`)) return;
+
+    appState.dietPlan.splice(index, 1);
+    saveStateToCloud();
+    renderDietPlan();
+    showAppToast("Meal Deleted", `${mealName} removed.`);
+}
+
+function clearEntireDietPlan() {
+    if (!confirm("Are you sure you want to clear all meals from your diet plan?")) return;
+    appState.dietPlan = [];
+    appState.dietMeals = null;
+    appState.dietText = '';
+    saveStateToCloud();
+    renderDietPlan();
+    showAppToast("Diet Cleared", "Your diet plan has been reset.");
+}
+
+function quickAddMeal() {
+    openAddCustomMealModal();
 }
 
 function addCalculatedMealToPlan() {
     if(!window.currentCalculatedMeal) return;
     const mealObj = {
-        meal: 'Custom Log',
+        id: 'meal_' + Date.now(),
+        meal: 'Custom Snack',
+        time: 'Custom Snack',
         name: window.currentCalculatedMeal.name,
         description: window.currentCalculatedMeal.desc,
-        macros: `${window.currentCalculatedMeal.pro}g P | ${window.currentCalculatedMeal.carb}g C | ${window.currentCalculatedMeal.fat}g F`
+        pro: parseFloat(window.currentCalculatedMeal.pro) || 0,
+        carb: parseFloat(window.currentCalculatedMeal.carb) || 0,
+        fat: parseFloat(window.currentCalculatedMeal.fat) || 0,
+        cals: parseFloat(window.currentCalculatedMeal.cals) || 0,
+        macros: `${window.currentCalculatedMeal.pro}g P • ${window.currentCalculatedMeal.carb}g C • ${window.currentCalculatedMeal.fat}g F • ${window.currentCalculatedMeal.cals} kcal`
     };
+    if (!Array.isArray(appState.dietPlan)) appState.dietPlan = [];
     appState.dietPlan.push(mealObj);
+    appState.dietText = '';
     saveStateToCloud();
-    
-    // Clear trainer note if it was forced, so user can edit their array now
-    if (appState.dietText) {
-        appState.dietText = '';
-        saveStateToCloud();
-    }
-    
     renderDietPlan();
     closeMealCalcModal();
+    showAppToast("Meal Added! 🥗", `${mealObj.name} added to your diet.`);
 }
 
 function renderDietPlan() {
     const container = document.getElementById('meal-plan-container'); 
+    if (!container) return;
     container.innerHTML = '';
-    let totalP = 0, totalC = 0, totalF = 0;
+    let totalP = 0, totalC = 0, totalF = 0, totalCals = 0;
 
     const timing = (appState.user && appState.user.workoutTiming) || appState.workoutTiming || 'morning';
     const isMorning = timing === 'morning';
 
     const hasStructuredMeals = appState.dietMeals && Object.values(appState.dietMeals).some(v => v);
+    const hasCustomMeals = Array.isArray(appState.dietPlan) && appState.dietPlan.length > 0;
 
-    if (hasStructuredMeals) {
+    if (hasCustomMeals) {
+        // Render Member's Custom & Preset Diet Plan
+        let html = `
+            <div class="p-4 bg-brand-900/20 border-b border-brand-500/30 flex justify-between items-center gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-brand-400/20 border border-brand-400/40 flex items-center justify-center text-brand-400 text-xs shadow-sm"><i class="fas fa-utensils"></i></span>
+                    <div>
+                        <h3 class="text-brand-400 font-bold text-xs uppercase tracking-wider">Active Meal Schedule</h3>
+                        <p class="text-[10px] text-gray-400">${appState.dietPlan.length} Meals Logged</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="openAddCustomMealModal()" class="text-[11px] bg-brand-400 hover:bg-brand-300 text-black px-3 py-1 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm">
+                        <i class="fas fa-plus"></i> Add Meal
+                    </button>
+                    <button type="button" onclick="clearEntireDietPlan()" title="Reset Diet" class="text-[11px] text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/50 border border-red-800/40 px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="divide-y divide-gray-800">
+        `;
+
+        appState.dietPlan.forEach((item, i) => {
+            const p = parseFloat(item.pro) || (item.macros ? parseInt((item.macros.match(/(\d+)\s*g\s*P/i) || [0,0])[1]) : 0);
+            const c = parseFloat(item.carb) || (item.macros ? parseInt((item.macros.match(/(\d+)\s*g\s*C/i) || [0,0])[1]) : 0);
+            const f = parseFloat(item.fat) || (item.macros ? parseInt((item.macros.match(/(\d+)\s*g\s*F/i) || [0,0])[1]) : 0);
+            let mealCals = parseFloat(item.cals) || (item.macros ? parseInt((item.macros.match(/(\d+)\s*kcal/i) || [0,0])[1]) : 0);
+            if (!mealCals) mealCals = Math.round((p * 4) + (c * 4) + (f * 9));
+
+            totalP += p;
+            totalC += c;
+            totalF += f;
+            totalCals += mealCals;
+
+            const timeLabel = item.time || item.meal || `Meal ${i + 1}`;
+
+            html += `
+                <div class="p-4 hover:bg-dark-100/50 transition-colors flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3 flex-1 min-w-0">
+                        <span class="w-8 h-8 rounded-xl bg-dark-100 border border-gray-700 flex items-center justify-center text-brand-400 text-xs shrink-0 mt-0.5">
+                            <i class="fas fa-apple-alt"></i>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-[10px] bg-dark-300 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-mono font-bold">${timeLabel}</span>
+                                <h4 class="text-white font-bold text-sm leading-tight truncate">${item.name}</h4>
+                            </div>
+                            ${item.description ? `<p class="text-gray-300 text-xs mt-1.5 leading-relaxed font-normal">${item.description}</p>` : ''}
+                            <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px] font-mono font-bold">
+                                <span class="bg-brand-500/15 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full">${p}g Protein</span>
+                                <span class="bg-orange-500/15 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">${c}g Carbs</span>
+                                <span class="bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">${f}g Fats</span>
+                                <span class="bg-dark-100 text-gray-300 border border-gray-700 px-2 py-0.5 rounded-full">${mealCals} kcal</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="deleteCustomMeal(${i})" title="Delete meal" class="text-gray-500 hover:text-red-400 p-2 transition-colors cursor-pointer shrink-0">
+                        <i class="fas fa-trash-alt text-sm"></i>
+                    </button>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+    } else if (hasStructuredMeals) {
         // Chronological order based on client's Gym Timing
         const mealMeta = isMorning ? [
             { key: 'preworkout', name: 'Pre-Workout Snack', time: 'Early Morning (Before Gym)', icon: 'fa-bolt', color: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30' },
@@ -3226,11 +3644,9 @@ function renderDietPlan() {
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5">
-                    <button onclick="toggleUserWorkoutTiming()" title="Click to toggle timing" class="text-[10px] bg-dark-300 hover:bg-dark-100 border border-brand-500/30 text-brand-400 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 transition-all">
-                        <span>${isMorning ? '🌅 Morning Gym' : '🌙 Evening Gym'}</span>
-                        <i class="fas fa-sync-alt text-[9px] text-gray-400"></i>
+                    <button type="button" onclick="openAddCustomMealModal()" class="text-[10px] bg-brand-400 hover:bg-brand-300 text-black px-2.5 py-1 rounded-full font-bold transition-all cursor-pointer">
+                        <i class="fas fa-plus"></i> Add Meal
                     </button>
-                    <span class="text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/40 px-2 py-1 rounded-full font-bold">ACTIVE</span>
                 </div>
             </div>
             <div class="divide-y divide-gray-800">
@@ -3269,10 +3685,21 @@ function renderDietPlan() {
         });
         html += `</div>`;
         container.innerHTML = html;
+        totalCals = (totalP * 4) + (totalC * 4) + (totalF * 9);
 
     } else if (appState.dietText) {
         // Render Trainer's Custom Text Plan
-        container.innerHTML = `<div class="p-6"><h3 class="text-brand-400 font-bold mb-4 uppercase tracking-wider text-sm"><i class="fas fa-user-shield mr-2"></i> Trainer Plan</h3><p class="text-white whitespace-pre-wrap text-sm leading-relaxed">${appState.dietText}</p></div>`;
+        container.innerHTML = `
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-brand-400 font-bold uppercase tracking-wider text-sm"><i class="fas fa-user-shield mr-2"></i> Trainer Plan</h3>
+                    <button type="button" onclick="openAddCustomMealModal()" class="text-[10px] bg-brand-400 hover:bg-brand-300 text-black px-2.5 py-1 rounded-full font-bold transition-all cursor-pointer">
+                        <i class="fas fa-plus"></i> Add Meal
+                    </button>
+                </div>
+                <p class="text-white whitespace-pre-wrap text-sm leading-relaxed">${appState.dietText}</p>
+            </div>
+        `;
         
         // Parse macros from the free-form text
         const pMatches = appState.dietText.match(/(\d+)\s*g\s*P/ig) || [];
@@ -3282,42 +3709,43 @@ function renderDietPlan() {
         pMatches.forEach(m => totalP += parseInt(m.match(/(\d+)/)[1]));
         cMatches.forEach(m => totalC += parseInt(m.match(/(\d+)/)[1]));
         fMatches.forEach(m => totalF += parseInt(m.match(/(\d+)/)[1]));
+        totalCals = (totalP * 4) + (totalC * 4) + (totalF * 9);
 
     } else {
-        // Render Default Array Plan
-        appState.dietPlan.forEach((item, i) => {
-            container.innerHTML += `<div class="p-4 border-b border-gray-800 last:border-b-0"><div class="flex justify-between items-start mb-2"><div><span class="text-brand-400 text-xs font-bold uppercase tracking-wider">${item.meal}</span><h3 class="text-white font-semibold">${item.name}</h3></div><span class="text-xs bg-dark-100 text-gray-300 px-2 py-1 rounded border border-gray-700">${item.macros}</span></div><p class="text-gray-400 text-sm">${item.description||''}</p></div>`;
-            
-            // Parse macros if available
-            if (item.macros) {
-                const pMatch = item.macros.match(/(\d+)g\s*P/i);
-                const cMatch = item.macros.match(/(\d+)g\s*C/i);
-                const fMatch = item.macros.match(/(\d+)g\s*F/i);
-                
-                if (pMatch) totalP += parseInt(pMatch[1]);
-                if (cMatch) totalC += parseInt(cMatch[1]);
-                if (fMatch) totalF += parseInt(fMatch[1]);
-            }
-        });
+        // Zero preloaded diet - Clean Empty State
+        container.innerHTML = `
+            <div class="text-center py-12 px-4">
+                <div class="w-16 h-16 rounded-2xl bg-brand-400/10 border border-brand-400/30 flex items-center justify-center text-brand-400 text-2xl mx-auto mb-3 shadow-[0_0_20px_rgba(250,204,21,0.2)]">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h3 class="text-white font-bold text-base mb-1">Your Diet Plan is Empty</h3>
+                <p class="text-gray-400 text-xs max-w-sm mx-auto mb-6">No preloaded diet active. Add your own custom meals or apply 1-Click Indian Diet Presets with full macro targets.</p>
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                    <button type="button" onclick="openAddCustomMealModal()" class="bg-brand-400 hover:bg-brand-300 text-black px-4 py-2.5 rounded-xl font-black text-xs transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)] flex items-center gap-2 cursor-pointer">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Add Custom Meal</span>
+                    </button>
+                    <button type="button" onclick="openIndianDietPresetsModal()" class="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black px-4 py-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer">
+                        <i class="fas fa-utensils"></i>
+                        <span>1-Click Indian Diet Presets</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    if (!totalCals && (hasCustomMeals || hasStructuredMeals || appState.dietText)) {
+        totalCals = (totalP * 4) + (totalC * 4) + (totalF * 9);
     }
     
-    let cals = (totalP * 4) + (totalC * 4) + (totalF * 9);
-    
-    // If no parsable macros found, default to TDEE estimate based on goals
-    if (cals === 0) {
-        cals = parseInt(appState.user.tdee) || 2000;
-        if (appState.user.goal === 'Weight Loss') cals -= 500;
-        else if (appState.user.goal === 'Lean Bulk') cals += 300;
-        
-        totalP = Math.round((cals * 0.3) / 4);
-        totalC = Math.round((cals * 0.4) / 4);
-        totalF = Math.round((cals * 0.3) / 9);
-    }
-    
-    document.getElementById('diet-total-cals').textContent = cals;
-    document.getElementById('diet-total-pro').textContent = totalP;
-    document.getElementById('diet-total-carb').textContent = totalC;
-    document.getElementById('diet-total-fat').textContent = totalF;
+    const calsEl = document.getElementById('diet-total-cals');
+    const proEl = document.getElementById('diet-total-pro');
+    const carbEl = document.getElementById('diet-total-carb');
+    const fatEl = document.getElementById('diet-total-fat');
+    if (calsEl) calsEl.textContent = totalCals;
+    if (proEl) proEl.textContent = totalP;
+    if (carbEl) carbEl.textContent = totalC;
+    if (fatEl) fatEl.textContent = totalF;
 }
 
 // --- CUSTOM ROUTINE BUILDER ---
@@ -6591,16 +7019,32 @@ function applyPresetToDietPlan() {
     const group = indianDietPresetsDB[activePresetGoalMode] || indianDietPresetsDB['cut'];
     const preset = group[activePresetCategory] || group['veg'];
 
-    if (!appState.customDiet) appState.customDiet = [];
-    appState.customDiet = preset.meals.map(m => ({
-        time: m.time,
-        name: m.name,
-        desc: m.items,
-        cals: parseInt(m.cals) || 300,
-        pro: parseInt(m.pro) || 25,
-        carb: Math.round((preset.carbs / preset.meals.length)),
-        fat: Math.round((preset.fats / preset.meals.length))
-    }));
+    const numMeals = preset.meals.length || 1;
+    const carbPerMeal = Math.round(preset.carbs / numMeals);
+    const fatPerMeal = Math.round(preset.fats / numMeals);
+
+    // Write directly into active dietPlan array
+    appState.dietPlan = preset.meals.map((m, idx) => {
+        const p = parseInt(m.pro) || 20;
+        const cals = parseInt(m.cals) || 300;
+        return {
+            id: 'preset_' + Date.now() + '_' + idx,
+            meal: m.time || m.name,
+            time: m.time,
+            name: m.name,
+            description: m.items,
+            desc: m.items,
+            pro: p,
+            carb: carbPerMeal,
+            fat: fatPerMeal,
+            cals: cals,
+            macros: `${p}g P • ${carbPerMeal}g C • ${fatPerMeal}g F • ${cals} kcal`
+        };
+    });
+
+    // Also clear coach text overrides so Indian Diet Preset immediately displays
+    appState.dietText = '';
+    appState.dietMeals = null;
 
     if (appState.user) {
         appState.user.dietPreference = (activePresetCategory === 'veg' || activePresetCategory === 'vegan') ? 'Veg' : 'Non-Veg';
@@ -6612,14 +7056,20 @@ function applyPresetToDietPlan() {
 
     saveStateToCloud();
     renderDietPlan();
-    addAthleteXp(75);
-    checkAndAwardBadges();
+
+    if (typeof addAthleteXp === 'function') addAthleteXp(75);
+    if (typeof checkAndAwardBadges === 'function') checkAndAwardBadges();
 
     if (typeof confetti === 'function') {
-        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+        try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } }); } catch(e){}
     }
 
-    alert(`🎉 Successfully applied "${preset.title}" to your daily diet! Your macro targets and meals have been updated.`);
+    if (typeof showAppToast === 'function') {
+        showAppToast("Diet Plan Applied! 🥗", `${preset.title} (${preset.cals} kcal) activated.`);
+    } else {
+        alert(`🎉 Successfully applied "${preset.title}" to your daily diet! Your macro targets and meals have been updated.`);
+    }
+
     closeIndianDietPresetsModal();
 }
 
