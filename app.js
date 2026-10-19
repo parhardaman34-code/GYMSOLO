@@ -1559,13 +1559,21 @@ async function loginAndRestoreUserData() {
             }
         }
 
-        if (matchedClientData && (matchedClientData.appState || matchedClientData.rawState)) {
-            const restoredState = matchedClientData.appState || matchedClientData.rawState;
+        if (matchedClientData) {
+            const restoredState = matchedClientData.appState || matchedClientData.rawState || {};
             // Restore client state
-            clientId = matchedClientId || rawId;
+            clientId = matchedClientId || matchedClientData.id || rawId;
             localStorage.setItem('gymsolo_client_id', clientId);
             localStorage.setItem('gymsolo_last_user_id', clientId);
-            appState = { ...appState, ...restoredState, onboarded: true };
+
+            const mergedUser = {
+                ...(appState.user || {}),
+                ...(restoredState.user || {}),
+                name: matchedClientData.name || restoredState.user?.name || (appState.user && appState.user.name) || 'Athlete',
+                phone: matchedClientData.phone || restoredState.user?.phone || (appState.user && appState.user.phone) || ''
+            };
+
+            appState = { ...appState, ...restoredState, user: mergedUser, onboarded: true };
             localStorage.setItem('gymsolo_state', JSON.stringify(appState));
 
             // Mark active in Firestore so remote logout does not trigger
@@ -1621,7 +1629,7 @@ async function loginAndRestoreUserData() {
             feedback.classList.remove('hidden-view');
         }
     } finally {
-        if (submitBtn && (!matchedClientData || (!matchedClientData.appState && !matchedClientData.rawState))) {
+        if (submitBtn && !matchedClientData) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Restore & Log In</span>';
         }
